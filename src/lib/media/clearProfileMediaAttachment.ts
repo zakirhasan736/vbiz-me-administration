@@ -14,7 +14,10 @@ const ATTACHMENT_TYPE_TO_SETTING_KEY: Record<string, string> = {
 /**
  * Clears a card builder media field: setting URL → '', matching Attachment rows + S3 objects,
  * and Profile.avatar when clearing profile media.
- * Pass `url` for multi-item types (Service Featured, Blog Featured, …) so only that file is destroyed.
+ *
+ * Always pass `url` for multi-item types (Service Featured, Blog Featured, Gallery, …).
+ * The API requires it and only deletes that file — omitting url used to wipe every sibling
+ * S3 object while list rows still pointed at those URLs (browser AccessDenied).
  */
 export async function clearProfileMediaAttachment(options: {
   profileId: string

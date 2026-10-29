@@ -256,7 +256,9 @@ export function VCardMediaField({
       setClearing(true)
       try {
         const { clearProfileMediaAttachment } = await import('@/lib/media/clearProfileMediaAttachment')
-        await clearProfileMediaAttachment({ profileId, attachmentType })
+        // Always pass url — multi-item types (Service Featured, Gallery, …) must
+        // only delete this file. Omitting url used to wipe every sibling S3 object.
+        await clearProfileMediaAttachment({ profileId, attachmentType, url: savedUrl })
       } catch {
         setError('Removed locally, but server clear failed. Save again or retry remove.')
       } finally {
