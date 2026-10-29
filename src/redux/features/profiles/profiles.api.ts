@@ -86,6 +86,19 @@ export type CardDailyBackupSummary = {
   personalMedia?: CardMediaSlot[]
 }
 
+export type CardChangeRestoreResult = {
+  restored: boolean
+  id: string
+  /** Media files in the snapshot that were missing in S3 and recovered from versions. */
+  media?: { checked: number; recovered: number; unrecoverable: string[] }
+}
+
+export type CardMediaRepairResult = {
+  checked: number
+  recovered: string[]
+  unrecoverable: Array<{ url: string; reason: string }>
+}
+
 export type CardChangeHistoryItem = {
   id: string
   /** Short 7-digit change id for support / restore (e.g. 4829173). */
@@ -1576,16 +1589,21 @@ const profilesApi = api.injectEndpoints({
       ) => res.data || { items: [], total: 0 },
       providesTags: (_r, _e, arg) => [{ type: 'profiles', id: `${arg.id}:history` }],
     }),
-    restoreCardChange: builder.mutation<{ restored: boolean; id: string }, { id: string; historyId: string }>({
+    restoreCardChange: builder.mutation<CardChangeRestoreResult, { id: string; historyId: string }>({
       query: ({ id, historyId }) => ({
         url: `/profiles/${id}/change-history/${historyId}/restore`,
         method: 'POST',
       }),
-      transformResponse: (res: Envelope<{ restored: boolean; id: string }>) => res.data,
+      transformResponse: (res: Envelope<CardChangeRestoreResult>) => res.data,
       invalidatesTags: (_r, _e, arg) => [
         { type: 'profiles', id: arg.id },
         { type: 'profiles', id: `${arg.id}:history` },
       ],
+    }),
+    repairCardMedia: builder.mutation<CardMediaRepairResult & { message?: string }, { id: string }>({
+      query: ({ id }) => ({ url: `/media/repair`, method: 'POST', body: { profileId: id } }),
+      transformResponse: (res: Envelope<CardMediaRepairResult>) => ({ ...res.data, message: res.message }),
+      invalidatesTags: (_r, _e, arg) => [{ type: 'profiles', id: arg.id }],
     }),
     listProfilePosts: builder.query<ApiPost[], { id: string; postType?: string }>({
       query: ({ id, postType }) =>
@@ -2045,6 +2063,7 @@ export const {
   useReplaceSocialLinksMutation,
   useListCardChangeHistoryQuery,
   useRestoreCardChangeMutation,
+  useRepairCardMediaMutation,
   useListProfilePostsQuery,
   useLazyListProfilePostsQuery,
   useCreateProfilePostMutation,

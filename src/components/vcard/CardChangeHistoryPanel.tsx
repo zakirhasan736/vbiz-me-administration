@@ -3,11 +3,13 @@
 import { notify } from '@/lib/toast/toast'
 import {
   useListCardChangeHistoryQuery,
+  useRepairCardMediaMutation,
   useRestoreCardChangeMutation,
   type CardMediaSlot,
   type CardTabCount,
 } from '@/redux/features/profiles/profiles.api'
 import { Film, History, ImageIcon, ImageOff, Loader2, RotateCcw } from 'lucide-react'
+import { useState } from 'react'
 
 function formatWhen(iso: string) {
   const date = new Date(iso)
@@ -104,6 +106,8 @@ export function CardChangeHistoryPanel({ cardId }: { cardId?: string }) {
   const profileId = cardId?.trim() || ''
   const { data, isLoading, isError, refetch } = useListCardChangeHistoryQuery({ id: profileId }, { skip: !profileId })
   const [restoreChange, restoreState] = useRestoreCardChangeMutation()
+  const [repairMedia, repairState] = useRepairCardMediaMutation()
+  const [brokenMedia, setBrokenMedia] = useState<string[]>([])
   const items = data?.items || []
   const inventory = data?.inventory
   const backups = data?.backups || []
@@ -111,12 +115,40 @@ export function CardChangeHistoryPanel({ cardId }: { cardId?: string }) {
   const onRestore = async (historyId: string) => {
     if (!profileId) return
     try {
-      await restoreChange({ id: profileId, historyId }).unwrap()
-      notify.success('That change was restored.')
+      const result = await restoreChange({ id: profileId, historyId }).unwrap()
+      const media = result?.media
+      if (media?.unrecoverable.length) {
+        setBrokenMedia(media.unrecoverable)
+        notify.error(
+          `Restored, but ${media.unrecoverable.length} image/video file(s) no longer exist in storage. Please re-upload them.`
+        )
+      } else if (media?.recovered) {
+        notify.success(`That change was restored, including ${media.recovered} recovered image/video file(s).`)
+      } else {
+        notify.success('That change was restored.')
+      }
       await refetch()
     } catch (error) {
       const apiError = error as { data?: { message?: string }; message?: string }
       notify.error(apiError.data?.message || apiError.message || 'This change could not be restored.')
+    }
+  }
+
+  const onRepairMedia = async () => {
+    if (!profileId) return
+    try {
+      const result = await repairMedia({ id: profileId }).unwrap()
+      setBrokenMedia(result.unrecoverable.map((m) => m.url))
+      if (result.unrecoverable.length) {
+        notify.error(
+          result.message || `${result.unrecoverable.length} file(s) could not be recovered — please re-upload.`
+        )
+      } else {
+        notify.success(result.message || `All ${result.checked} image/video files are OK.`)
+      }
+    } catch (error) {
+      const apiError = error as { data?: { message?: string }; message?: string }
+      notify.error(apiError.data?.message || apiError.message || 'Media check failed.')
     }
   }
 
@@ -153,6 +185,30 @@ export function CardChangeHistoryPanel({ cardId }: { cardId?: string }) {
           is marked Empty.
         </p>
         <TabCountList tabs={inventory?.tabs || []} personalMedia={inventory?.personalMedia} />
+        <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-slate-100 pt-4 dark:border-white/10">
+          <button
+            type="button"
+            onClick={() => void onRepairMedia()}
+            disabled={repairState.isLoading}
+            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-[12px] font-bold text-slate-700 transition hover:bg-slate-50 disabled:opacity-60 dark:border-white/10 dark:text-slate-200 dark:hover:bg-white/5"
+          >
+            {repairState.isLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+            {repairState.isLoading ? 'Checking images…' : 'Check & repair images'}
+          </button>
+          <span className="text-[12px] font-medium text-slate-500 dark:text-slate-400">
+            Finds any broken image or video on this card and recovers it from storage backups.
+          </span>
+        </div>
+        {brokenMedia.length ? (
+          <div className="mt-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-[12px] font-medium text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300">
+            <p className="mb-1 font-bold">These files could not be recovered — re-upload them:</p>
+            <ul className="space-y-0.5 break-all">
+              {brokenMedia.map((url) => (
+                <li key={url}>{url.split('/').pop()}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
       </section>
 
       <section className="rounded-[1.5rem] border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-[#070a13]">
