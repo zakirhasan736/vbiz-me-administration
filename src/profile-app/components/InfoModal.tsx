@@ -57,13 +57,16 @@ export function InfoModal({ isOpen, onClose }: InfoModalProps) {
           items.map((item, idx) => {
             const Icon = item.icon
             const blockContent = (
-              <div className="vbiz-modal-row flex items-start gap-3 rounded-xl border p-3.5 text-left transition-all">
-                <div className="vbiz-pill-icon flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border">
+              <div className="vbiz-modal-row vbiz-my-info-row flex items-start gap-3 rounded-xl border p-3.5 text-left transition-all">
+                <div className="vbiz-pill-icon vbiz-my-info-icon flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border">
                   <Icon size={16} />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="vbiz-pin mb-0.5 text-[10px] font-bold tracking-wider uppercase">{item.label}</p>
-                  <p className="vbiz-title truncate text-sm font-semibold">{item.value}</p>
+                  {/* Label → primary; value → accent (tokens already switch light/dark). */}
+                  <p className="vbiz-my-info-label mb-0.5 text-[10px] font-bold tracking-wider uppercase">
+                    {item.label}
+                  </p>
+                  <p className="vbiz-my-info-value truncate text-sm font-semibold">{item.value}</p>
                 </div>
               </div>
             )

@@ -1397,6 +1397,22 @@ ${themeUi('.vbiz-icon-btn:hover')} {
   border-color: color-mix(in srgb, var(--vbiz-accent) 45%, transparent) !important;
   background-color: var(--vbiz-accent-faint) !important;
 }
+/* Home → My Info popup: label = primary, value = accent.
+   --vbiz-primary / --vbiz-accent already swap per light/dark via cardThemeCssVars(). */
+.vbiz-profile-root .vbiz-my-info-label {
+  color: var(--vbiz-primary) !important;
+}
+.vbiz-profile-root .vbiz-my-info-value {
+  color: var(--vbiz-accent) !important;
+}
+.vbiz-profile-root .vbiz-my-info-icon {
+  color: var(--vbiz-primary) !important;
+  border-color: color-mix(in srgb, var(--vbiz-primary) 40%, transparent) !important;
+  background-color: color-mix(in srgb, var(--vbiz-primary) 14%, transparent) !important;
+}
+.vbiz-profile-root .vbiz-my-info-icon svg {
+  color: inherit !important;
+}
 .vbiz-modal-row-selected {
   background: linear-gradient(to bottom right, var(--vbiz-accent), var(--vbiz-accent-dark)) !important;
   color: var(--vbiz-secondary) !important;
