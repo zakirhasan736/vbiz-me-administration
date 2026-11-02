@@ -93,10 +93,22 @@ export type CardChangeRestoreResult = {
   media?: { checked: number; recovered: number; unrecoverable: string[] }
 }
 
+/** One image/video on a card, with the tab and item it belongs to. */
+export type CardMediaItem = {
+  url: string
+  key: string
+  area: string
+  label: string | null
+  status: 'ok' | 'missing' | 'pending' | 'recovered' | 'unknown'
+  reason?: string | null
+  uploadedFor?: { profileId: string | null; area: string | null } | null
+}
+
 export type CardMediaRepairResult = {
   checked: number
   recovered: string[]
-  unrecoverable: Array<{ url: string; reason: string }>
+  unrecoverable: Array<{ url: string; reason: string; area?: string; label?: string | null }>
+  items?: CardMediaItem[]
 }
 
 export type CardChangeHistoryItem = {
@@ -1600,10 +1612,18 @@ const profilesApi = api.injectEndpoints({
         { type: 'profiles', id: `${arg.id}:history` },
       ],
     }),
+    getCardMediaStatus: builder.query<CardMediaItem[], { id: string }>({
+      query: ({ id }) => `/media/status?profileId=${encodeURIComponent(id)}`,
+      transformResponse: (res: Envelope<{ items: CardMediaItem[] }>) => res.data?.items || [],
+      providesTags: (_r, _e, arg) => [{ type: 'profiles', id: `${arg.id}:media` }],
+    }),
     repairCardMedia: builder.mutation<CardMediaRepairResult & { message?: string }, { id: string }>({
       query: ({ id }) => ({ url: `/media/repair`, method: 'POST', body: { profileId: id } }),
       transformResponse: (res: Envelope<CardMediaRepairResult>) => ({ ...res.data, message: res.message }),
-      invalidatesTags: (_r, _e, arg) => [{ type: 'profiles', id: arg.id }],
+      invalidatesTags: (_r, _e, arg) => [
+        { type: 'profiles', id: arg.id },
+        { type: 'profiles', id: `${arg.id}:media` },
+      ],
     }),
     listProfilePosts: builder.query<ApiPost[], { id: string; postType?: string }>({
       query: ({ id, postType }) =>
@@ -2064,6 +2084,7 @@ export const {
   useListCardChangeHistoryQuery,
   useRestoreCardChangeMutation,
   useRepairCardMediaMutation,
+  useGetCardMediaStatusQuery,
   useListProfilePostsQuery,
   useLazyListProfilePostsQuery,
   useCreateProfilePostMutation,

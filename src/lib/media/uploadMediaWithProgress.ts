@@ -19,12 +19,29 @@ export type UploadMediaWithProgressOptions = {
   file: File
   profileId?: string | null
   attachmentType?: string
+  /** Tab / screen this file is for (services, portfolio …). Defaults to the builder section in the URL. */
+  area?: string
+  /** Item title on that tab, recorded for media health reports. */
+  itemLabel?: string
   onProgress?: (percent: number) => void
   onStatus?: (status: 'preparing' | 'uploading') => void
   signal?: AbortSignal
 }
 
 const OPTIMIZE_PROGRESS_WEIGHT = 85
+
+/**
+ * Builder section from the editor URL: `/vcards/edit/services/...` → `services`.
+ * Lets the API file each upload under the card's tab folder without every caller
+ * passing it.
+ */
+export function builderSectionFromPath(pathname?: string): string | undefined {
+  const path = pathname ?? (typeof window !== 'undefined' ? window.location.pathname : '')
+  const match = /\/vcards\/(?:edit|create)\/([a-z0-9-]+)/i.exec(path || '')
+  const section = match?.[1]?.toLowerCase()
+  if (!section || section === 'home') return undefined
+  return section
+}
 
 export class MediaUploadError extends Error {
   status?: number
@@ -175,6 +192,9 @@ export async function uploadMediaWithProgress(
         form.append('attachableId', profileId)
       }
       if (attachmentType) form.append('attachmentType', attachmentType)
+      const area = options.area || builderSectionFromPath()
+      if (area) form.append('area', area)
+      if (options.itemLabel?.trim()) form.append('itemLabel', options.itemLabel.trim().slice(0, 200))
 
       const onAbort = () => {
         xhr.abort()

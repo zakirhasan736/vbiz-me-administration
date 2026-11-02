@@ -1,3 +1,4 @@
+import { BrokenMediaGuard } from '@/components/public/BrokenMediaGuard'
 import type { Viewport } from 'next'
 import type { ReactNode } from 'react'
 
@@ -13,7 +14,12 @@ export const viewport: Viewport = {
   themeColor: '#0b0f19',
 }
 
-/** Pass-through — SSR page owns `PublicProfileLayout`. */
+/** Pass-through — SSR page owns `PublicProfileLayout`. Adds the broken-media fallback. */
 export default function PublicVCardSlugLayout({ children }: Props) {
-  return children
+  return (
+    <>
+      {children}
+      <BrokenMediaGuard />
+    </>
+  )
 }
