@@ -37,6 +37,12 @@ const IGNORED_MESSAGE_PATTERNS: RegExp[] = [
   /^event:unhandledrejection$/i,
   // Chrome sometimes rejects with a bare Event (type "error") and no message.
   /^event:error$/i,
+  // Safari Web Extensions (password managers, etc.) inject content scripts and
+  // reject when no tab listener is registered — not our app code.
+  // https://bugs.webkit.org/show_bug.cgi?id=294454
+  /no listener:\s*tabs:outgoing\.message\.ready/i,
+  /invalid call to runtime\.sendMessage/i,
+  /tabs?:outgoing\.message/i,
 ]
 
 export function sentryReasonToMessage(reason: unknown): string {
