@@ -1,14 +1,14 @@
 'use client'
 
 import type { DynamicPostListItem } from '@/interfaces/api/dynamicPosts.interface'
-import { profileMediaFitStyle } from '@/lib/media/profileMediaFrame'
 import { PUBLIC_SECTION_NAMES } from '@/lib/vcardPublicSectionNames'
+import { FeaturedCardMedia } from '@/profile-app/components/FeaturedCardMedia'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
 import { PublicTabFrame, V3ErrorState, V3PreviewAwareText } from '@/profile-app/sections'
 import { useGetDynamicSectionQuery } from '@/redux/api'
+import { cn } from '@/utils/cn'
 import { Shield } from 'lucide-react'
-import Image from 'next/image'
 import type { ReactNode } from 'react'
 
 function resolveBbbImage(item: DynamicPostListItem): string {
@@ -33,14 +33,19 @@ function BbbAccreditationCard({ item, buttonLabel }: { item: DynamicPostListItem
   const content = (
     <div className="flex flex-col items-start gap-6 md:flex-row md:items-center md:gap-10">
       {imageUrl ? (
-        <div className="relative h-36 w-36 shrink-0 overflow-hidden rounded-xl border border-zinc-200/80 bg-white shadow-sm md:h-40 md:w-40 dark:border-zinc-700 dark:bg-zinc-950">
-          <Image
+        <div
+          className={cn(
+            'relative shrink-0 overflow-hidden rounded-xl border border-zinc-200/80 bg-white shadow-sm dark:border-zinc-700 dark:bg-zinc-950',
+            !item.mediaFrame && 'h-36 w-36 md:h-40 md:w-40'
+          )}
+        >
+          <FeaturedCardMedia
             src={imageUrl}
-            alt={item.title}
-            fill
-            className="object-contain p-2"
-            sizes="160px"
-            style={item.mediaFrame ? profileMediaFitStyle(item.mediaFrame) : undefined}
+            alt={item.title.trim() || ''}
+            frame={item.mediaFrame}
+            className="h-full w-full"
+            unframedHeightClassName="h-full"
+            mediaClassName="h-full w-full object-contain object-center p-2"
           />
         </div>
       ) : null}

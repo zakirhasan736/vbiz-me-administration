@@ -1,8 +1,9 @@
 'use client'
 
 import type { VideoListItem } from '@/interfaces/api/videos.interface'
-import { profileMediaFitStyle, type ProfileMediaFrame } from '@/lib/media/profileMediaFrame'
+import type { ProfileMediaFrame } from '@/lib/media/profileMediaFrame'
 import { isDirectVideoFileUrl, resolvePlayableVideo, type PlayableVideo } from '@/lib/videoEmbed'
+import { FeaturedCardMedia } from '@/profile-app/components/FeaturedCardMedia'
 import { contentGridClass } from '@/profile-app/lib/contentGridClass'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
@@ -25,7 +26,6 @@ import {
   X,
 } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
-import Image from 'next/image'
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type MouseEvent } from 'react'
 import { createPortal } from 'react-dom'
 
@@ -300,10 +300,13 @@ function InlineCardVideo({
   frame?: ProfileMediaFrame | null
 }) {
   const videoRef = useRef<HTMLVideoElement>(null)
+  const framedVideoHostRef = useRef<HTMLDivElement>(null)
   const [isMuted, setIsMuted] = useState(true)
 
+  const resolvePreviewVideo = () => videoRef.current ?? framedVideoHostRef.current?.querySelector('video') ?? null
+
   useEffect(() => {
-    const video = videoRef.current
+    const video = resolvePreviewVideo()
     if (!video) return
     video.muted = isMuted
     if (isMuted) video.setAttribute('muted', '')
@@ -311,17 +314,17 @@ function InlineCardVideo({
       video.removeAttribute('muted')
       if (video.volume === 0) video.volume = 1
     }
-  }, [isMuted])
+  }, [isMuted, frame])
 
   useEffect(() => {
-    const video = videoRef.current
+    const video = resolvePreviewVideo()
     if (!video) return
     if (paused) {
       video.pause()
       return
     }
     void video.play().catch(() => undefined)
-  }, [paused, src])
+  }, [paused, src, frame])
 
   const openPlayer = (event: MouseEvent) => {
     event.preventDefault()
@@ -332,7 +335,7 @@ function InlineCardVideo({
   const toggleMute = (event: MouseEvent) => {
     event.preventDefault()
     event.stopPropagation()
-    const video = videoRef.current
+    const video = resolvePreviewVideo()
     if (!video) return
 
     if (isMuted) {
@@ -353,21 +356,33 @@ function InlineCardVideo({
 
   return (
     <div className="relative h-full w-full">
-      <video
-        ref={videoRef}
-        src={src}
-        autoPlay
-        loop
-        muted={isMuted}
-        playsInline
-        preload="metadata"
-        className="h-full w-full object-cover"
-        style={frame ? profileMediaFitStyle(frame) : undefined}
-        {...{
-          'webkit-playsinline': 'true',
-          'x5-playsinline': 'true',
-        }}
-      />
+      {frame ? (
+        <div ref={framedVideoHostRef} className="h-full w-full">
+          <FeaturedCardMedia
+            src={src}
+            alt=""
+            frame={frame}
+            video
+            className="h-full w-full"
+            unframedHeightClassName="h-full"
+          />
+        </div>
+      ) : (
+        <video
+          ref={videoRef}
+          src={src}
+          autoPlay
+          loop
+          muted={isMuted}
+          playsInline
+          preload="metadata"
+          className="h-full w-full object-cover"
+          {...{
+            'webkit-playsinline': 'true',
+            'x5-playsinline': 'true',
+          }}
+        />
+      )}
       <div className="pointer-events-none absolute inset-0 bg-linear-to-t from-black/55 via-black/10 to-transparent" />
 
       <button
@@ -444,18 +459,23 @@ function VideoCard({
       role={hasGalleryImages ? 'button' : undefined}
       tabIndex={hasGalleryImages ? 0 : undefined}
     >
-      <div className="relative h-48 overflow-hidden bg-zinc-100 sm:h-56 dark:bg-zinc-950">
+      <div
+        className={cn(
+          'relative overflow-hidden bg-zinc-100 dark:bg-zinc-950',
+          (!hasFeatured || featuredIsDirectVideo || !item.mediaFrame) && 'h-48 sm:h-56'
+        )}
+      >
         {featuredIsDirectVideo ? (
           <InlineCardVideo src={featuredImage} paused={playerOpen} onOpenPlayer={openVideo} frame={item.mediaFrame} />
         ) : hasFeatured ? (
           <>
-            <Image
+            <FeaturedCardMedia
               src={featuredImage}
-              alt={item.title}
-              fill
-              sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
-              className="object-cover transition-transform duration-700 group-hover:scale-105"
-              style={item.mediaFrame ? profileMediaFitStyle(item.mediaFrame) : undefined}
+              alt={item.title.trim() || ''}
+              frame={item.mediaFrame}
+              className={item.mediaFrame ? 'w-full' : 'absolute inset-0 h-full w-full'}
+              unframedHeightClassName="h-full"
+              mediaClassName="h-full w-full object-cover object-center transition-transform duration-700 group-hover:scale-105"
             />
             <div className="absolute inset-0 bg-linear-to-t from-black/55 via-black/10 to-transparent" />
             {canOpenPlayer || videoUrl ? (

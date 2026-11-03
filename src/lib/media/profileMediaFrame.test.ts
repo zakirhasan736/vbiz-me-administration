@@ -8,6 +8,7 @@ import {
   profileMediaFitStyle,
   profileMediaFramedObjectFitStyle,
   profileMediaObjectPosition,
+  resetFrameForContainedFit,
 } from '@/lib/media/profileMediaFrame'
 import { describe, expect, it } from 'vitest'
 
@@ -35,8 +36,9 @@ describe('profile media frame', () => {
     expect(PROFILE_FRAME_ZOOM_MIN).toBe(0.5)
     const frame = parseProfileMediaFrame({ zoom: 0.5 })
     expect(frame.zoom).toBe(0.5)
+    // Implicit contain (zoom < 1) must not scale — that overflowed like cover/fill.
     expect(profileMediaFitStyle(frame).objectFit).toBe('contain')
-    expect(profileMediaFitStyle(frame).transform).toBe('scale(0.5)')
+    expect(profileMediaFitStyle(frame).transform).toBe('none')
   })
 
   it('honors an explicit image object type over zoom heuristics', () => {
@@ -85,21 +87,40 @@ describe('profile media frame', () => {
     expect(style.transform).toBe('none')
   })
 
-  it('contain keeps zoom and object-position on the framed image', () => {
+  it('contain ignores zoom so the image cannot overflow like cover/fill', () => {
     const frame = parseProfileMediaFrame({ focusX: 20, focusY: 80, zoom: 1.4, objectFit: 'contain' })
     const style = profileMediaCoverLayoutStyle(frame, { width: 100, height: 200 }, { width: 320, height: 180 })
     expect(style.objectFit).toBe('contain')
     expect(style.objectPosition).toBe('20% 80%')
-    expect(style.transform).toBe('scale(1.4)')
-    expect(style.transformOrigin).toBe('20% 80%')
+    expect(style.transform).toBe('none')
+    expect(style.maxWidth).toBe('100%')
+    expect(style.maxHeight).toBe('100%')
   })
 
-  it('fill uses full-frame CSS object-fit fill with zoom', () => {
+  it('fill stretches to the frame without scale overflow', () => {
     const frame = parseProfileMediaFrame({ focusX: 50, focusY: 50, zoom: 1.5, objectFit: 'fill' })
     const style = profileMediaCoverLayoutStyle(frame, { width: 100, height: 200 }, { width: 320, height: 180 })
     expect(style.objectFit).toBe('fill')
     expect(style.width).toBe('100%')
     expect(style.height).toBe('100%')
-    expect(style.transform).toBe('scale(1.5)')
+    expect(style.transform).toBe('none')
+  })
+
+  it('resets zoom, drag, and frame height when switching to contain', () => {
+    const dirty = parseProfileMediaFrame({
+      focusX: 10,
+      focusY: 90,
+      zoom: 2,
+      height: 1.4,
+      objectFit: 'cover',
+    })
+    const next = resetFrameForContainedFit('contain', dirty)
+    expect(next).toEqual({
+      focusX: 50,
+      focusY: 50,
+      zoom: 1,
+      height: 1,
+      objectFit: 'contain',
+    })
   })
 })

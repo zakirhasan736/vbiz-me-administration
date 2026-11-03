@@ -2,13 +2,13 @@
 
 import type { DynamicPostListItem } from '@/interfaces/api/dynamicPosts.interface'
 import { stripHtml } from '@/lib/api/calendar/resolveCalendarItemUrl'
-import { profileMediaFitStyle } from '@/lib/media/profileMediaFrame'
 import { encodeMediaUrl, isUsableImageSrc } from '@/lib/mediaUrl'
 import {
   CertificateImageLightbox,
   resolveCertificateMediaKind,
   type CertificatePreview,
 } from '@/profile-app/components/CertificateImageLightbox'
+import { FeaturedCardMedia } from '@/profile-app/components/FeaturedCardMedia'
 import { IconHoverTooltip } from '@/profile-app/components/IconHoverTooltip'
 import { contentGridClass } from '@/profile-app/lib/contentGridClass'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
@@ -18,7 +18,6 @@ import { useGetDynamicSectionQuery } from '@/redux/api'
 import { cn } from '@/utils/cn'
 import { FileText, Maximize2, ShieldCheck } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
-import Image from 'next/image'
 import { useState } from 'react'
 
 function resolveInsuranceLicenseImage(item: DynamicPostListItem): string {
@@ -81,15 +80,20 @@ function InsuranceLicenseCard({
       }}
       className="group relative flex h-full cursor-pointer flex-col overflow-hidden rounded-3xl border border-zinc-200 bg-white/50 shadow-sm backdrop-blur-xl transition-colors duration-300 hover:bg-white/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#eab308] dark:border-zinc-800/80 dark:bg-zinc-900/50 dark:hover:bg-zinc-900/80"
     >
-      <div className="relative h-48 overflow-hidden bg-zinc-100 sm:h-56 dark:bg-zinc-950">
+      <div
+        className={cn(
+          'relative overflow-hidden bg-zinc-100 dark:bg-zinc-950',
+          (!showImage || !item.mediaFrame) && 'h-48 sm:h-56'
+        )}
+      >
         {showImage ? (
-          <Image
-            width={500}
-            height={500}
+          <FeaturedCardMedia
             src={mediaSrc}
-            alt={item.title}
-            className="h-full w-full object-cover opacity-70 grayscale-40 transition-all duration-700 group-hover:scale-105 group-hover:opacity-100 group-hover:grayscale-0"
-            style={item.mediaFrame ? profileMediaFitStyle(item.mediaFrame) : undefined}
+            alt={item.title.trim() || ''}
+            frame={item.mediaFrame}
+            className={item.mediaFrame ? 'w-full' : 'h-full'}
+            unframedHeightClassName="h-full"
+            mediaClassName="h-full w-full object-cover object-center opacity-70 grayscale-40 transition-all duration-700 group-hover:scale-105 group-hover:opacity-100 group-hover:grayscale-0"
           />
         ) : showPdf ? (
           <iframe

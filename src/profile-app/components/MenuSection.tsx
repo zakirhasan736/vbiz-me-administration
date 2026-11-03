@@ -2,9 +2,9 @@
 
 import type { DynamicPostListItem } from '@/interfaces/api/dynamicPosts.interface'
 import { stripHtml } from '@/lib/api/calendar/resolveCalendarItemUrl'
-import { profileMediaFitStyle } from '@/lib/media/profileMediaFrame'
 import { encodeMediaUrl, isUsableImageSrc, isVideoUrl } from '@/lib/mediaUrl'
 import { PUBLIC_SECTION_NAMES } from '@/lib/vcardPublicSectionNames'
+import { FeaturedCardMedia } from '@/profile-app/components/FeaturedCardMedia'
 import { contentGridClass } from '@/profile-app/lib/contentGridClass'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
@@ -118,28 +118,32 @@ function MenuCard({ item, idx, accent, onSelect, onPreview }: MenuCardProps) {
         type="button"
         onClick={() => (media.length ? onPreview(item) : onCardActivate())}
         disabled={!media.length && !opensPreviewOnCard}
-        className={`relative h-48 overflow-hidden bg-zinc-100 text-left dark:bg-zinc-950 ${media.length ? 'cursor-zoom-in' : 'cursor-default'}`}
+        className={cn(
+          'relative overflow-hidden bg-zinc-100 text-left dark:bg-zinc-950',
+          media.length ? 'cursor-zoom-in' : 'cursor-default',
+          (!imageUrl || !item.mediaFrame) && 'h-48'
+        )}
         aria-label={media.length ? `View ${item.title || 'menu'} ${video ? 'video' : 'image'}` : undefined}
       >
         {imageUrl && !video ? (
-          <Image
-            width={640}
-            height={360}
+          <FeaturedCardMedia
             src={imageUrl}
-            alt={item.title}
-            className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
-            style={item.mediaFrame ? profileMediaFitStyle(item.mediaFrame) : undefined}
+            alt={item.title.trim() || ''}
+            frame={item.mediaFrame}
+            className={item.mediaFrame ? 'w-full' : 'h-full'}
+            unframedHeightClassName="h-full"
+            mediaClassName="h-full w-full object-cover object-center transition-transform duration-700 group-hover:scale-105"
           />
         ) : video ? (
           <div className="flex h-full w-full items-center justify-center bg-zinc-950">
             {imageUrl && imageUrl !== video.url ? (
-              <Image
-                width={640}
-                height={360}
+              <FeaturedCardMedia
                 src={imageUrl}
                 alt=""
-                className="absolute inset-0 h-full w-full object-cover opacity-70"
-                style={item.mediaFrame ? profileMediaFitStyle(item.mediaFrame) : undefined}
+                frame={item.mediaFrame}
+                className="absolute inset-0 h-full w-full opacity-70"
+                unframedHeightClassName="h-full"
+                mediaClassName="h-full w-full object-cover object-center"
               />
             ) : null}
             <span className="relative rounded-full bg-black/60 px-4 py-2 text-xs font-bold tracking-wide text-white uppercase">
@@ -339,17 +343,19 @@ function MenuItemDetail({ item, sectionTitle, accent, onBack, onPreview }: MenuI
           <button
             type="button"
             onClick={() => onPreview(item)}
-            className="relative block aspect-21/9 w-full cursor-zoom-in overflow-hidden bg-zinc-100 text-left dark:bg-zinc-950"
+            className={cn(
+              'relative block w-full cursor-zoom-in overflow-hidden bg-zinc-100 text-left dark:bg-zinc-950',
+              !item.mediaFrame && 'aspect-21/9'
+            )}
             aria-label={`View ${item.title || 'menu'} image`}
           >
-            <Image
+            <FeaturedCardMedia
               src={heroImage}
-              alt={item.title}
-              fill
-              className="object-cover"
-              priority
-              sizes="100vw"
-              style={item.mediaFrame ? profileMediaFitStyle(item.mediaFrame) : undefined}
+              alt={item.title.trim() || ''}
+              frame={item.mediaFrame}
+              className={item.mediaFrame ? 'w-full' : 'absolute inset-0 h-full w-full'}
+              unframedHeightClassName="h-full"
+              mediaClassName="h-full w-full object-cover object-center"
             />
             <div className="absolute inset-0 bg-linear-to-t from-zinc-950/70 via-zinc-950/20 to-transparent" />
             <div className="absolute right-0 bottom-0 left-0 p-8 lg:p-10">

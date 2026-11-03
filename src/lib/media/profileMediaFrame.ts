@@ -131,11 +131,27 @@ export function profileMediaObjectFitSelectValue(frame: ProfileMediaFrame): Prof
   return frame.objectFit || 'cover'
 }
 
+/** Object types that must stay fully inside the frame (no zoom overflow). */
+export function isContainedObjectFit(fit: ProfileMediaObjectFit | undefined): boolean {
+  return fit === 'contain' || fit === 'scale-down'
+}
+
+/** Tailwind object-* class matching a saved mediaFrame (avoids object-cover fighting contain). */
+export function featureMediaObjectClassName(frame?: ProfileMediaFrame | null, fallback = 'object-cover'): string {
+  if (!frame) return fallback
+  const fit = frame.objectFit || resolveProfileMediaObjectFit(frame)
+  if (fit === 'contain') return 'object-contain'
+  if (fit === 'scale-down') return 'object-scale-down'
+  if (fit === 'fill') return 'object-fill'
+  if (fit === 'none') return 'object-none'
+  return 'object-cover'
+}
+
 /**
- * CSS fallback when media/container pixels are unknown.
- * Prefer `profileMediaCoverLayoutStyle` in interactive previews and public feature media.
- * For contain / fill / etc., prefer `profileMediaFramedObjectFitStyle` so the media
- * fills the frame box and letterboxes against the black frame.
+ * Inline styles for feature images in list/detail cards (preview + public).
+ * Prefer `PositionedFeatureMedia` / `FeaturedCardMedia` when the frame owns layout height.
+ * Contain / fill never apply zoom scale (that made contain look like cover).
+ * Cover keeps object-position + optional zoom scale as a CSS approximation.
  */
 export function profileMediaFitStyle(frame: ProfileMediaFrame): {
   objectFit: ProfileMediaObjectFit
@@ -144,7 +160,18 @@ export function profileMediaFitStyle(frame: ProfileMediaFrame): {
   transformOrigin: string
 } {
   const objectPosition = profileMediaObjectPosition(frame)
-  const objectFit = resolveProfileMediaObjectFit(frame)
+  const explicit = frame.objectFit
+  const objectFit = explicit || resolveProfileMediaObjectFit(frame)
+
+  if (isContainedObjectFit(objectFit) || objectFit === 'fill') {
+    return {
+      objectFit,
+      objectPosition: isContainedObjectFit(objectFit) ? '50% 50%' : objectPosition,
+      transform: 'none',
+      transformOrigin: '50% 50%',
+    }
+  }
+
   return {
     objectFit,
     objectPosition,
@@ -154,21 +181,71 @@ export function profileMediaFitStyle(frame: ProfileMediaFrame): {
 }
 
 /**
+ * Fresh contain / scale-down crop: centered in the black frame, zoom 100%,
+ * featured height back to the default frame (16:9 at height 1).
+ * Ignores any prior cover pan/zoom/height so the image fits the frame cleanly.
+ */
+export function resetFrameForContainedFit(
+  fit: 'contain' | 'scale-down',
+  _current?: ProfileMediaFrame | null
+): ProfileMediaFrame {
+  void _current
+  return parseProfileMediaFrame({
+    focusX: 50,
+    focusY: 50,
+    zoom: 1,
+    height: 1,
+    objectFit: fit,
+  })
+}
+
+/**
  * True CSS object-fit inside the full frame (black letterbox shows through).
- * Used for contain / fill / none / scale-down so the image sits centered in the
- * frame like `object-fit: contain` — matching the card-builder preview.
- * Zoom scales from the focus point; drag updates object-position.
+ * - contain / scale-down: whole image visible, centered; zoom is ignored (would overflow)
+ * - fill: stretch to frame edges
+ * - none: intrinsic size, clipped by the frame; zoom allowed
+ * Drag updates object-position (free axis for contain = left/right or top/bottom).
  */
 export function profileMediaFramedObjectFitStyle(frame: ProfileMediaFrame): CSSProperties {
   const objectPosition = profileMediaObjectPosition(frame)
-  const objectFit = resolveProfileMediaObjectFit(frame)
+  const objectFit = frame.objectFit || resolveProfileMediaObjectFit(frame)
+
+  if (isContainedObjectFit(objectFit)) {
+    return {
+      position: 'absolute',
+      inset: 0,
+      width: '100%',
+      height: '100%',
+      maxWidth: '100%',
+      maxHeight: '100%',
+      objectFit,
+      objectPosition,
+      // Zoom must not apply — scale() makes contain look like cover/fill.
+      transform: 'none',
+    }
+  }
+
+  if (objectFit === 'fill') {
+    return {
+      position: 'absolute',
+      inset: 0,
+      width: '100%',
+      height: '100%',
+      maxWidth: '100%',
+      maxHeight: '100%',
+      objectFit: 'fill',
+      objectPosition,
+      transform: 'none',
+    }
+  }
+
+  // none — natural pixels; frame clips overflow. Zoom still allowed.
   return {
     position: 'absolute',
     inset: 0,
     width: '100%',
     height: '100%',
-    maxWidth: 'none',
-    objectFit,
+    objectFit: 'none',
     objectPosition,
     transform: frame.zoom === 1 ? 'none' : `scale(${frame.zoom})`,
     transformOrigin: objectPosition,

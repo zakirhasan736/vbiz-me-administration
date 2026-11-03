@@ -2,9 +2,9 @@
 
 import type { DynamicPostListItem } from '@/interfaces/api/dynamicPosts.interface'
 import { stripHtml } from '@/lib/api/calendar/resolveCalendarItemUrl'
-import { profileMediaFitStyle } from '@/lib/media/profileMediaFrame'
 import { resolveProductPricing } from '@/lib/productPricing'
 import { PUBLIC_SECTION_NAMES } from '@/lib/vcardPublicSectionNames'
+import { FeaturedCardMedia } from '@/profile-app/components/FeaturedCardMedia'
 import { contentGridClass } from '@/profile-app/lib/contentGridClass'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
@@ -13,8 +13,6 @@ import { useGetDynamicSectionQuery } from '@/redux/api'
 import { cn } from '@/utils/cn'
 import { ArrowUpRight, ShoppingBag } from 'lucide-react'
 import { motion } from 'motion/react'
-import Image from 'next/image'
-
 function resolveProductImage(item: DynamicPostListItem): string {
   const featured = item.featuredImage.trim()
   if (featured) return featured
@@ -73,15 +71,20 @@ function SeeProductsCard({ item, idx, accent }: { item: DynamicPostListItem; idx
       transition={{ duration: 0.4, delay: idx * 0.08 }}
       className="group flex h-full flex-col overflow-hidden rounded-3xl border border-zinc-200 bg-white/50 shadow-sm backdrop-blur-xl transition-colors hover:bg-white/80 dark:border-zinc-800/80 dark:bg-zinc-900/50 dark:hover:bg-zinc-900/80"
     >
-      <div className="relative h-56 overflow-hidden bg-zinc-100 dark:bg-zinc-950">
+      <div
+        className={cn(
+          'relative overflow-hidden bg-zinc-100 dark:bg-zinc-950',
+          (!imageUrl || !item.mediaFrame) && 'h-56'
+        )}
+      >
         {imageUrl ? (
-          <Image
+          <FeaturedCardMedia
             src={imageUrl}
             alt={item.title.trim() || ''}
-            fill
-            sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
-            className="object-cover transition-transform duration-700 group-hover:scale-105"
-            style={item.mediaFrame ? profileMediaFitStyle(item.mediaFrame) : undefined}
+            frame={item.mediaFrame}
+            className={item.mediaFrame ? 'w-full' : 'absolute inset-0 h-full w-full'}
+            unframedHeightClassName="h-full"
+            mediaClassName="h-full w-full object-cover object-center transition-transform duration-700 group-hover:scale-105"
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center bg-zinc-200 dark:bg-zinc-800">

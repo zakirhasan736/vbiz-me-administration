@@ -1,8 +1,8 @@
 'use client'
 
 import type { DynamicPostListItem } from '@/interfaces/api/dynamicPosts.interface'
-import { profileMediaFitStyle } from '@/lib/media/profileMediaFrame'
 import { PUBLIC_SECTION_NAMES } from '@/lib/vcardPublicSectionNames'
+import { FeaturedCardMedia } from '@/profile-app/components/FeaturedCardMedia'
 import { contentGridClass } from '@/profile-app/lib/contentGridClass'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
@@ -11,8 +11,6 @@ import { useGetDynamicSectionQuery } from '@/redux/api'
 import { cn } from '@/utils/cn'
 import { CalendarCheck } from 'lucide-react'
 import { motion } from 'motion/react'
-import Image from 'next/image'
-
 function resolveBookingImage(item: DynamicPostListItem): string {
   const featured = item.featuredImage.trim()
   if (featured) return featured
@@ -59,15 +57,20 @@ function BookingCard({ item, idx, accent, primaryColor }: BookingCardProps) {
       className="group flex h-full flex-col overflow-hidden rounded-2xl border-2 bg-white shadow-sm transition-shadow duration-300 hover:shadow-md dark:bg-zinc-900"
       style={{ borderColor: accent }}
     >
-      <div className="relative h-44 overflow-hidden bg-zinc-100 dark:bg-zinc-950">
+      <div
+        className={cn(
+          'relative overflow-hidden bg-zinc-100 dark:bg-zinc-950',
+          (!imageUrl || !item.mediaFrame) && 'h-44'
+        )}
+      >
         {imageUrl ? (
-          <Image
-            width={640}
-            height={360}
+          <FeaturedCardMedia
             src={imageUrl}
-            alt={item.title}
-            className="h-full w-full object-cover grayscale transition-all duration-700 group-hover:scale-105 group-hover:grayscale-0"
-            style={item.mediaFrame ? profileMediaFitStyle(item.mediaFrame) : undefined}
+            alt={item.title.trim() || ''}
+            frame={item.mediaFrame}
+            className={item.mediaFrame ? 'w-full' : 'h-full'}
+            unframedHeightClassName="h-full"
+            mediaClassName="h-full w-full object-cover object-center grayscale transition-all duration-700 group-hover:scale-105 group-hover:grayscale-0"
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center bg-zinc-200 dark:bg-zinc-800">
