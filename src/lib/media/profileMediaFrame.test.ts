@@ -6,6 +6,7 @@ import {
   profileFramePhoneAspect,
   profileMediaCoverLayoutStyle,
   profileMediaFitStyle,
+  profileMediaFramedObjectFitStyle,
   profileMediaObjectPosition,
 } from '@/lib/media/profileMediaFrame'
 import { describe, expect, it } from 'vitest'
@@ -70,43 +71,35 @@ describe('profile media frame', () => {
     expect(style.top).toBe(-70)
   })
 
-  it('contain fits the whole image inside the frame and keeps it centered', () => {
+  it('contain uses full-frame CSS object-fit so the black frame letterboxes under the image', () => {
     const frame = parseProfileMediaFrame({ focusX: 50, focusY: 50, zoom: 1, objectFit: 'contain' })
-    // Portrait media in a landscape frame — contain binds on height.
     const style = profileMediaCoverLayoutStyle(frame, { width: 100, height: 200 }, { width: 320, height: 180 })
-    expect(style.width).toBe(90)
-    expect(style.height).toBe(180)
-    expect(style.left).toBe(115)
-    expect(style.top).toBe(0)
-    expect(style.objectFit).toBe('fill')
+    const framed = profileMediaFramedObjectFitStyle(frame)
+    expect(style).toEqual(framed)
+    expect(style.position).toBe('absolute')
+    expect(style.inset).toBe(0)
+    expect(style.width).toBe('100%')
+    expect(style.height).toBe('100%')
+    expect(style.objectFit).toBe('contain')
+    expect(style.objectPosition).toBe('50% 50%')
+    expect(style.transform).toBe('none')
   })
 
-  it('contain clamps pan so the image stays inside when not zoomed past the frame', () => {
-    const frame = parseProfileMediaFrame({ focusX: 0, focusY: 50, zoom: 1, objectFit: 'contain' })
-    // Nearly frame-width media: unclamped focusX=0 would push past the right edge.
-    const style = profileMediaCoverLayoutStyle(frame, { width: 280, height: 200 }, { width: 320, height: 180 })
-    expect(style.width).toBe(252)
-    expect(style.height).toBe(180)
-    // Without clamp, left would be 160; smart contain keeps the full image visible (right-aligned).
-    expect(style.left).toBe(68)
-    expect(style.top).toBe(0)
-  })
-
-  it('contain zoom-in allows pan while still clamping to media edges', () => {
-    const frame = parseProfileMediaFrame({ focusX: 50, focusY: 50, zoom: 2, objectFit: 'contain' })
+  it('contain keeps zoom and object-position on the framed image', () => {
+    const frame = parseProfileMediaFrame({ focusX: 20, focusY: 80, zoom: 1.4, objectFit: 'contain' })
     const style = profileMediaCoverLayoutStyle(frame, { width: 100, height: 200 }, { width: 320, height: 180 })
-    expect(style.width).toBe(180)
-    expect(style.height).toBe(360)
-    expect(style.left).toBe(70)
-    expect(style.top).toBe(-90)
+    expect(style.objectFit).toBe('contain')
+    expect(style.objectPosition).toBe('20% 80%')
+    expect(style.transform).toBe('scale(1.4)')
+    expect(style.transformOrigin).toBe('20% 80%')
   })
 
-  it('fill stretches to the frame then applies zoom around focus', () => {
+  it('fill uses full-frame CSS object-fit fill with zoom', () => {
     const frame = parseProfileMediaFrame({ focusX: 50, focusY: 50, zoom: 1.5, objectFit: 'fill' })
     const style = profileMediaCoverLayoutStyle(frame, { width: 100, height: 200 }, { width: 320, height: 180 })
-    expect(style.width).toBe(480)
-    expect(style.height).toBe(270)
-    expect(style.left).toBe(-80)
-    expect(style.top).toBe(-45)
+    expect(style.objectFit).toBe('fill')
+    expect(style.width).toBe('100%')
+    expect(style.height).toBe('100%')
+    expect(style.transform).toBe('scale(1.5)')
   })
 })

@@ -11,7 +11,7 @@ import {
   profileFeatureMediaAspectRatio,
   profileFramePreviewHeight,
   profileMediaCoverLayoutStyle,
-  profileMediaFitStyle,
+  profileMediaFramedObjectFitStyle,
   profileMediaObjectFitSelectValue,
   type MediaPixelSize,
   type ProfileMediaFrame,
@@ -65,12 +65,15 @@ export function AvatarMediaFramePreview({
       ? { ...DEFAULT_FEATURE_MEDIA_FRAME }
       : parseProfileMediaFrame(null)
   const featureLayout = layout === 'feature'
+  const useCoverMath = (resolved.objectFit || 'cover') === 'cover'
+  // Contain / fill / etc. → CSS object-fit in the black frame (letterbox). Cover → pixel pan/zoom.
   const fit =
-    mediaSize && boxSize
+    useCoverMath && mediaSize && boxSize
       ? profileMediaCoverLayoutStyle(resolved, mediaSize, boxSize)
-      : { ...profileMediaFitStyle(resolved), width: '100%', height: '100%' }
+      : profileMediaFramedObjectFitStyle(resolved)
 
   useEffect(() => {
+    if (!useCoverMath) return
     const box = boxRef.current
     if (!box || typeof ResizeObserver === 'undefined') return
     const sync = () => {
@@ -83,7 +86,7 @@ export function AvatarMediaFramePreview({
     const observer = new ResizeObserver(sync)
     observer.observe(box)
     return () => observer.disconnect()
-  }, [featureLayout, resolved.height])
+  }, [featureLayout, resolved.height, useCoverMath])
 
   const updateFromPointer = (clientX: number, clientY: number) => {
     const start = dragRef.current
@@ -250,7 +253,15 @@ export function AvatarMediaFramePreview({
             <select
               value={profileMediaObjectFitSelectValue(resolved)}
               aria-label="Image object type"
-              onChange={(event) => patchFrame({ objectFit: event.target.value as ProfileMediaObjectFit })}
+              onChange={(event) => {
+                const objectFit = event.target.value as ProfileMediaObjectFit
+                // Contain / scale-down: center in the black frame so letterboxing is even.
+                if (objectFit === 'contain' || objectFit === 'scale-down') {
+                  patchFrame({ objectFit, focusX: 50, focusY: 50 })
+                  return
+                }
+                patchFrame({ objectFit })
+              }}
               className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[12px] font-semibold text-slate-800 outline-none focus:border-emerald-500 dark:border-white/10 dark:bg-[#0b0f19] dark:text-slate-100"
             >
               {PROFILE_MEDIA_OBJECT_FIT_OPTIONS.map((option) => (

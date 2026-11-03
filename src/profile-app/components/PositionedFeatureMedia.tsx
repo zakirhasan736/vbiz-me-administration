@@ -4,7 +4,7 @@ import {
   parseProfileMediaFrame,
   profileFeatureMediaAspectRatio,
   profileMediaCoverLayoutStyle,
-  profileMediaFitStyle,
+  profileMediaFramedObjectFitStyle,
   type MediaPixelSize,
   type ProfileMediaFrame,
 } from '@/lib/media/profileMediaFrame'
@@ -21,8 +21,9 @@ type PositionedFeatureMediaProps = {
 }
 
 /**
- * Shows the original image until a crop is saved. A saved crop uses the same
- * cover position / zoom / object-fit / height as the card builder.
+ * Featured / services media frame.
+ * Contain → black frame under the image (CSS object-fit contain, centered).
+ * Cover → pixel pan/zoom. Height controls the frame aspect ratio.
  */
 export function PositionedFeatureMedia({ src, alt, frame, className, video = false }: PositionedFeatureMediaProps) {
   const playVideo = video || isVideoUrl(src)
@@ -40,9 +41,10 @@ export function PositionedFeatureMedia({ src, alt, frame, className, video = fal
   const mediaSize = mediaSizeState.src === src ? mediaSizeState.size : null
   const setMediaSize = (size: MediaPixelSize) => setMediaSizeState({ src, size })
   const resolved = frame ? parseProfileMediaFrame(frame) : null
+  const useCoverMath = Boolean(resolved && (resolved.objectFit || 'cover') === 'cover')
 
   useEffect(() => {
-    if (!resolved) return
+    if (!resolved || !useCoverMath) return
     const box = boxRef.current
     if (!box || typeof ResizeObserver === 'undefined') return
     const sync = () => {
@@ -55,7 +57,7 @@ export function PositionedFeatureMedia({ src, alt, frame, className, video = fal
     const observer = new ResizeObserver(sync)
     observer.observe(box)
     return () => observer.disconnect()
-  }, [resolved])
+  }, [resolved, useCoverMath])
 
   if (!resolved) {
     if (playVideo) {
@@ -67,15 +69,17 @@ export function PositionedFeatureMedia({ src, alt, frame, className, video = fal
     )
   }
 
+  // Contain / fill / none / scale-down: fill the black frame with CSS object-fit (letterbox).
+  // Cover: pixel-accurate pan + zoom once media + box sizes are known.
   const fit =
-    mediaSize && boxSize
+    useCoverMath && mediaSize && boxSize
       ? profileMediaCoverLayoutStyle(resolved, mediaSize, boxSize)
-      : { ...profileMediaFitStyle(resolved), width: '100%', height: '100%' }
+      : profileMediaFramedObjectFitStyle(resolved)
 
   return (
     <div
       ref={boxRef}
-      className="relative w-full overflow-hidden bg-zinc-100 dark:bg-zinc-950"
+      className="relative w-full overflow-hidden bg-black"
       style={{ aspectRatio: profileFeatureMediaAspectRatio(resolved) }}
     >
       {playVideo ? (

@@ -46,12 +46,12 @@ function ServiceCard({ item, accent }: { item: DynamicPostListItem; accent: stri
       />
       <div className="mx-auto flex max-w-3xl flex-col items-center text-center">
         {imageUrl ? (
-          <div className="mb-6 w-full overflow-hidden rounded-xl border border-zinc-200/80 bg-white shadow-md transition-transform duration-300 group-hover:scale-[1.01] sm:mb-8 dark:border-zinc-700 dark:bg-zinc-950">
+          <div className="mb-6 w-full overflow-hidden rounded-xl border border-zinc-200/80 bg-black shadow-md transition-transform duration-300 group-hover:scale-[1.01] sm:mb-8 dark:border-zinc-700">
             <PositionedFeatureMedia
               src={imageUrl}
               alt={item.title.trim() || ''}
               frame={item.mediaFrame}
-              className="mx-auto h-auto max-h-56 w-full object-contain"
+              className="mx-auto h-auto max-h-56 w-full object-contain object-center"
             />
           </div>
         ) : null}

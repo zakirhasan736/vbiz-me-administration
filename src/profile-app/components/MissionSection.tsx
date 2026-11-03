@@ -58,7 +58,7 @@ function MissionContentCard({ item, sectionTitle, accent, idx = 0 }: MissionCont
 
       <div className="relative z-10 flex w-full flex-col">
         {heroImage ? (
-          <div className="vcard-mission-media flex w-full items-center justify-center overflow-hidden bg-zinc-100 dark:bg-zinc-950">
+          <div className="vcard-mission-media flex w-full items-center justify-center overflow-hidden bg-black">
             <PositionedFeatureMedia
               src={heroImage}
               alt={item.title.trim() || sectionTitle}
