@@ -280,27 +280,39 @@ export function buildCardThemeStyleSheet(config: CardThemeConfig, mode: ThemeMod
   const dark = cardThemeVarRecord(config, 'dark')
   const active = mode === 'light' ? light : dark
 
-  // Fallback for first paint. Light/dark blocks below win on the card itself via
-  // `.vbiz-theme-light` / `.vbiz-theme-dark`, so the public toggle does not depend
-  // on `<html class="dark">` (that class is the admin shell, not the card).
+  // Fallback for first paint. Light/dark blocks below win via `.vbiz-theme-light` /
+  // `.vbiz-theme-dark` on the card AND on modals (preview does not sync `<html class="dark">`).
+  // Do not key modal panels off html.dark — that made My Info popups use the admin shell
+  // theme while the card preview was on the opposite mode.
   const baseScopes =
     '.vbiz-profile-root, .vbiz-preloader, .vbiz-modal-backdrop, .vbiz-modal-panel, .vbiz-theme-scope, .vbiz-loading-screen'
   const lightScopes = [
     '.vbiz-profile-root.vbiz-theme-light',
-    'html:not(.dark) .vbiz-preloader',
-    'html:not(.dark) .vbiz-modal-backdrop',
-    'html:not(.dark) .vbiz-modal-panel',
-    'html:not(.dark) .vbiz-theme-scope',
-    'html:not(.dark) .vbiz-loading-screen',
+    '.vbiz-preloader.vbiz-theme-light',
+    '.vbiz-modal-backdrop.vbiz-theme-light',
+    '.vbiz-modal-panel.vbiz-theme-light',
+    '.vbiz-theme-scope.vbiz-theme-light',
+    '.vbiz-loading-screen.vbiz-theme-light',
+    // Public card only: html tracks the card toggle when not embedded.
+    'html:not(.dark) .vbiz-preloader:not(.vbiz-theme-dark)',
+    'html:not(.dark) .vbiz-modal-backdrop:not(.vbiz-theme-dark)',
+    'html:not(.dark) .vbiz-modal-panel:not(.vbiz-theme-dark)',
+    'html:not(.dark) .vbiz-theme-scope:not(.vbiz-theme-dark)',
+    'html:not(.dark) .vbiz-loading-screen:not(.vbiz-theme-dark)',
   ].join(',\n')
   const darkScopes = [
     '.vbiz-profile-root.vbiz-theme-dark',
     '.vbiz-profile-root.dark',
-    'html.dark .vbiz-preloader',
-    'html.dark .vbiz-modal-backdrop',
-    'html.dark .vbiz-modal-panel',
-    'html.dark .vbiz-theme-scope',
-    'html.dark .vbiz-loading-screen',
+    '.vbiz-preloader.vbiz-theme-dark',
+    '.vbiz-modal-backdrop.vbiz-theme-dark',
+    '.vbiz-modal-panel.vbiz-theme-dark',
+    '.vbiz-theme-scope.vbiz-theme-dark',
+    '.vbiz-loading-screen.vbiz-theme-dark',
+    'html.dark .vbiz-preloader:not(.vbiz-theme-light)',
+    'html.dark .vbiz-modal-backdrop:not(.vbiz-theme-light)',
+    'html.dark .vbiz-modal-panel:not(.vbiz-theme-light)',
+    'html.dark .vbiz-theme-scope:not(.vbiz-theme-light)',
+    'html.dark .vbiz-loading-screen:not(.vbiz-theme-light)',
   ].join(',\n')
 
   return [
@@ -1397,26 +1409,37 @@ ${themeUi('.vbiz-icon-btn:hover')} {
   border-color: color-mix(in srgb, var(--vbiz-accent) 45%, transparent) !important;
   background-color: var(--vbiz-accent-faint) !important;
 }
-/* Home → My Info popup: label = primary, value = accent.
-   --vbiz-primary / --vbiz-accent already swap per light/dark via cardThemeCssVars(). */
-.vbiz-profile-root .vbiz-my-info-label {
+/* Home → My Info popup: label/title = primary, value/data = accent.
+   Apply on profile root AND modal panel (v1 portals outside the root). */
+.vbiz-profile-root .vbiz-my-info-label,
+.vbiz-modal-panel .vbiz-my-info-label {
   color: var(--vbiz-primary) !important;
 }
-.vbiz-profile-root .vbiz-my-info-value {
+.vbiz-profile-root .vbiz-my-info-value,
+.vbiz-modal-panel .vbiz-my-info-value {
   color: var(--vbiz-accent) !important;
 }
-.vbiz-profile-root .vbiz-my-info-icon {
+.vbiz-profile-root .vbiz-my-info-icon,
+.vbiz-modal-panel .vbiz-my-info-icon {
   color: var(--vbiz-primary) !important;
   border-color: color-mix(in srgb, var(--vbiz-primary) 40%, transparent) !important;
   background-color: color-mix(in srgb, var(--vbiz-primary) 14%, transparent) !important;
 }
-.vbiz-profile-root .vbiz-my-info-icon svg {
+.vbiz-profile-root .vbiz-my-info-icon svg,
+.vbiz-modal-panel .vbiz-my-info-icon svg {
   color: inherit !important;
 }
-/* Modal titles (Notification Settings, unfollow confirm, etc.).
-   Avoid .vbiz-title here — it inherits --vbiz-page-header-fg (often black) and vanishes on dark modals. */
-.vbiz-profile-root .vbiz-modal-heading {
+/* Modal titles (My Info name, Notification Settings, etc.).
+   Avoid .vbiz-title — it inherits --vbiz-page-header-fg (often black) on dark modals. */
+.vbiz-profile-root .vbiz-modal-heading,
+.vbiz-modal-panel .vbiz-modal-heading {
   color: var(--vbiz-primary) !important;
+}
+/* My Info popup header chip follows primary (labels), not accent. */
+.vbiz-modal-panel .vbiz-my-info-header .vbiz-modal-icon-chip {
+  color: var(--vbiz-primary) !important;
+  border-color: color-mix(in srgb, var(--vbiz-primary) 40%, transparent) !important;
+  background-color: color-mix(in srgb, var(--vbiz-primary) 14%, transparent) !important;
 }
 .vbiz-modal-row-selected {
   background: linear-gradient(to bottom right, var(--vbiz-accent), var(--vbiz-accent-dark)) !important;

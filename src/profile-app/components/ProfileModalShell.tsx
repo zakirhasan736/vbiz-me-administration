@@ -1,5 +1,7 @@
 'use client'
 
+import { useDocumentThemeMode } from '@/profile-app/components/CardThemeStyles'
+import { profileRootThemeClass } from '@/profile-app/hooks/useProfileTheme'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import { PUBLIC_MODAL_BACKDROP, PUBLIC_MODAL_PANEL } from '@/profile-app/lib/publicModalLayout'
 import { V1BottomSheet } from '@/profile-app/v1/components/V1BottomSheet'
@@ -30,9 +32,11 @@ export function ProfileModalShell({
   backdropId,
 }: ProfileModalShellProps) {
   const { design } = useProfileDisplay()
+  const themeMode = useDocumentThemeMode('dark')
+  const themeClass = profileRootThemeClass(themeMode)
   const isV1 = design?.profileTemplate === 'v1'
-  const backdrop = backdropClassName || PUBLIC_MODAL_BACKDROP
-  const panel = `${PUBLIC_MODAL_PANEL}${panelClassName ? ` ${panelClassName}` : ''}`
+  const backdrop = `${backdropClassName || PUBLIC_MODAL_BACKDROP} ${themeClass}`
+  const panel = `${PUBLIC_MODAL_PANEL}${panelClassName ? ` ${panelClassName}` : ''} ${themeClass}`
 
   useEffect(() => {
     if (!isOpen || isV1) return
@@ -45,7 +49,7 @@ export function ProfileModalShell({
 
   if (isV1) {
     return (
-      <V1BottomSheet isOpen={isOpen} onClose={onClose}>
+      <V1BottomSheet isOpen={isOpen} onClose={onClose} themeClass={themeClass}>
         <div className={`vbiz-modal-panel ${panel}`}>{children}</div>
       </V1BottomSheet>
     )
