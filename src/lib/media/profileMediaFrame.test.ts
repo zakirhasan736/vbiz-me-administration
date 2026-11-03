@@ -69,4 +69,44 @@ describe('profile media frame', () => {
     expect(style.left).toBe(80)
     expect(style.top).toBe(-70)
   })
+
+  it('contain fits the whole image inside the frame and keeps it centered', () => {
+    const frame = parseProfileMediaFrame({ focusX: 50, focusY: 50, zoom: 1, objectFit: 'contain' })
+    // Portrait media in a landscape frame — contain binds on height.
+    const style = profileMediaCoverLayoutStyle(frame, { width: 100, height: 200 }, { width: 320, height: 180 })
+    expect(style.width).toBe(90)
+    expect(style.height).toBe(180)
+    expect(style.left).toBe(115)
+    expect(style.top).toBe(0)
+    expect(style.objectFit).toBe('fill')
+  })
+
+  it('contain clamps pan so the image stays inside when not zoomed past the frame', () => {
+    const frame = parseProfileMediaFrame({ focusX: 0, focusY: 50, zoom: 1, objectFit: 'contain' })
+    // Nearly frame-width media: unclamped focusX=0 would push past the right edge.
+    const style = profileMediaCoverLayoutStyle(frame, { width: 280, height: 200 }, { width: 320, height: 180 })
+    expect(style.width).toBe(252)
+    expect(style.height).toBe(180)
+    // Without clamp, left would be 160; smart contain keeps the full image visible (right-aligned).
+    expect(style.left).toBe(68)
+    expect(style.top).toBe(0)
+  })
+
+  it('contain zoom-in allows pan while still clamping to media edges', () => {
+    const frame = parseProfileMediaFrame({ focusX: 50, focusY: 50, zoom: 2, objectFit: 'contain' })
+    const style = profileMediaCoverLayoutStyle(frame, { width: 100, height: 200 }, { width: 320, height: 180 })
+    expect(style.width).toBe(180)
+    expect(style.height).toBe(360)
+    expect(style.left).toBe(70)
+    expect(style.top).toBe(-90)
+  })
+
+  it('fill stretches to the frame then applies zoom around focus', () => {
+    const frame = parseProfileMediaFrame({ focusX: 50, focusY: 50, zoom: 1.5, objectFit: 'fill' })
+    const style = profileMediaCoverLayoutStyle(frame, { width: 100, height: 200 }, { width: 320, height: 180 })
+    expect(style.width).toBe(480)
+    expect(style.height).toBe(270)
+    expect(style.left).toBe(-80)
+    expect(style.top).toBe(-45)
+  })
 })

@@ -27,15 +27,18 @@ export function InfoModal({ isOpen, onClose }: InfoModalProps) {
 
   return (
     <ProfileModalShell isOpen={isOpen} onClose={onClose} panelClassName="max-w-[400px] sm:max-w-[400px]">
-      <div className="vbiz-modal-header flex items-center justify-between border-b p-6 pb-4">
+      <div className="vbiz-modal-header vbiz-my-info-header flex items-center justify-between border-b p-6 pb-4">
         <div className="flex items-center gap-2">
           <div className="vbiz-modal-icon-chip rounded-xl p-2">
             <Info size={18} />
           </div>
           <div>
-            <h3 className="vbiz-title notranslate text-lg font-bold tracking-tight">{name}</h3>
+            {/* Title → primary; subtitle → accent (matches label/value pairing below). */}
+            <h3 className="vbiz-modal-heading notranslate text-lg font-bold tracking-tight">{name}</h3>
             {title ? (
-              <p className="vbiz-pin notranslate text-xs font-semibold tracking-wide uppercase opacity-90">{title}</p>
+              <p className="vbiz-my-info-value notranslate text-xs font-semibold tracking-wide uppercase opacity-90">
+                {title}
+              </p>
             ) : null}
           </div>
         </div>

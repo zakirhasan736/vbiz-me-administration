@@ -75,7 +75,7 @@ export function PositionedFeatureMedia({ src, alt, frame, className, video = fal
   return (
     <div
       ref={boxRef}
-      className="relative w-full overflow-hidden bg-black"
+      className="relative w-full overflow-hidden bg-zinc-100 dark:bg-zinc-950"
       style={{ aspectRatio: profileFeatureMediaAspectRatio(resolved) }}
     >
       {playVideo ? (

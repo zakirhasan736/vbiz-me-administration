@@ -1,6 +1,6 @@
 'use client'
 
-import { SkeletonImage, SkeletonWave } from '@/components/media/SkeletonMedia'
+import { SkeletonWave } from '@/components/media/SkeletonMedia'
 import { normalizeRichTextHtml } from '@/lib/editor/normalizeRichTextHtml'
 import { PositionedFeatureMedia } from '@/profile-app/components/PositionedFeatureMedia'
 import { ServiceDetail } from '@/profile-app/components/ServiceDetail'
@@ -117,23 +117,14 @@ export const ServicesSection = () => {
               className={`vbiz-content-card group relative flex min-h-55 flex-col overflow-hidden rounded-3xl border border-zinc-200 bg-white/50 p-6 shadow-sm backdrop-blur-xl transition-colors duration-300 hover:bg-white/80 md:p-8 dark:border-zinc-800/80 dark:bg-zinc-900/50 dark:hover:bg-zinc-900/80${isClickable ? 'cursor-pointer' : ''}`}
             >
               {imageUrl ? (
-                <div className="relative mb-4 min-h-40 w-full overflow-hidden rounded-xl border border-zinc-200 bg-zinc-100 dark:border-zinc-800/80 dark:bg-zinc-900/70">
-                  {service.mediaFrame ? (
-                    <PositionedFeatureMedia
-                      src={imageUrl}
-                      alt={service.title.trim() || ''}
-                      frame={service.mediaFrame}
-                      className="mx-auto max-h-56 w-full object-contain"
-                    />
-                  ) : (
-                    <SkeletonImage
-                      src={imageUrl}
-                      alt={service.title.trim() || ''}
-                      className="min-h-40 w-full"
-                      mediaClassName="mx-auto max-h-56 w-full object-contain"
-                      skeletonLabel="Loading service image"
-                    />
-                  )}
+                <div className="relative mb-4 w-full overflow-hidden rounded-xl border border-zinc-200 bg-zinc-100 dark:border-zinc-800/80 dark:bg-zinc-900/70">
+                  {/* Framed crops use pixel contain/cover/fill + zoom/position; unframed stays object-contain. */}
+                  <PositionedFeatureMedia
+                    src={imageUrl}
+                    alt={service.title.trim() || ''}
+                    frame={service.mediaFrame}
+                    className="mx-auto max-h-56 min-h-40 w-full object-contain object-center"
+                  />
                 </div>
               ) : (
                 <div className="mb-4 flex h-40 w-full items-center justify-center overflow-hidden rounded-xl border border-zinc-200 bg-zinc-100 dark:border-zinc-800/80 dark:bg-zinc-900/70">

@@ -20,10 +20,12 @@ type V1BottomSheetProps = {
   children: ReactNode
   /** Panel width / rounding classes applied to the sliding sheet. */
   panelClassName?: string
+  /** Card light/dark class so portaled panels match preview theme, not admin html.dark. */
+  themeClass?: string
 }
 
 /** v1 popup shell — centered with ~10% top/bottom safe space above all profile UI. */
-export function V1BottomSheet({ isOpen, onClose, children, panelClassName }: V1BottomSheetProps) {
+export function V1BottomSheet({ isOpen, onClose, children, panelClassName, themeClass }: V1BottomSheetProps) {
   const portalTarget = useSyncExternalStore(subscribePortalTarget, getPortalTarget, () => null)
 
   useEffect(() => {
@@ -47,7 +49,7 @@ export function V1BottomSheet({ isOpen, onClose, children, panelClassName }: V1B
             exit={{ opacity: 0 }}
             transition={{ duration: 0.4, ease: 'easeOut' }}
             onClick={onClose}
-            className="pointer-events-auto fixed inset-0 z-9998 bg-black/75 backdrop-blur-md"
+            className={`vbiz-modal-backdrop pointer-events-auto fixed inset-0 z-9998 bg-black/75 backdrop-blur-md ${themeClass ?? ''}`}
             aria-hidden
           />
           <div
@@ -59,7 +61,7 @@ export function V1BottomSheet({ isOpen, onClose, children, panelClassName }: V1B
               exit={{ opacity: 0, scale: 0.96, y: 24 }}
               transition={{ type: 'spring', damping: 30, stiffness: 350, mass: 0.8 }}
               onClick={(e) => e.stopPropagation()}
-              className={`pointer-events-auto max-h-[90dvh] w-full overflow-x-hidden overflow-y-auto overscroll-contain sm:max-w-[440px] ${panelClassName ?? ''}`}
+              className={`pointer-events-auto max-h-[90dvh] w-full overflow-x-hidden overflow-y-auto overscroll-contain sm:max-w-[440px] ${panelClassName ?? ''} ${themeClass ?? ''}`}
             >
               {children}
             </motion.div>
