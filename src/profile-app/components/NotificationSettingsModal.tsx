@@ -162,7 +162,7 @@ export const NotificationSettingsModal = ({
               <BellOff size={24} />
             </div>
             <div className="flex flex-col gap-1.5">
-              <h2 className="vbiz-title text-xl font-bold">Notifications turned off</h2>
+              <h2 className="vbiz-modal-heading text-xl font-bold">Notifications turned off</h2>
               <p className="vbiz-description text-sm">
                 You won&apos;t get updates for this card anymore. You can re-enable them anytime.
               </p>
@@ -193,7 +193,7 @@ export const NotificationSettingsModal = ({
                 <div className="vbiz-modal-icon-chip flex h-8 w-8 items-center justify-center rounded-full">
                   <Bell size={16} />
                 </div>
-                <h2 className="vbiz-title text-xl font-bold">Notification Settings</h2>
+                <h2 className="vbiz-modal-heading text-xl font-bold">Notification Settings</h2>
               </div>
               <p className="vbiz-description text-md">Choose what to get notified about:</p>
             </div>

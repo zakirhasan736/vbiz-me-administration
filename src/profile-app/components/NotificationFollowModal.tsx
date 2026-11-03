@@ -193,7 +193,9 @@ export function NotificationFollowModal({
                   </div>
 
                   <div className="mb-3 text-center">
-                    <h3 className="vbiz-title notranslate mb-1 text-xl font-bold tracking-tight">Follow {firstName}</h3>
+                    <h3 className="vbiz-modal-heading notranslate mb-1 text-xl font-bold tracking-tight">
+                      Follow {firstName}
+                    </h3>
                     <p className="vbiz-description text-xs leading-snug font-medium">
                       Push notifications and account SMS when <span className="notranslate">{ownerName}</span> updates
                       this card.
@@ -336,7 +338,7 @@ export function NotificationFollowModal({
                   >
                     <Check size={36} strokeWidth={3} />
                   </motion.div>
-                  <h3 className="vbiz-title mb-1 text-xl font-bold">You&apos;re All Set!</h3>
+                  <h3 className="vbiz-modal-heading mb-1 text-xl font-bold">You&apos;re All Set!</h3>
                   <p className="vbiz-description mb-3 text-sm font-medium">
                     We&apos;ll notify you the moment an update is published.
                   </p>

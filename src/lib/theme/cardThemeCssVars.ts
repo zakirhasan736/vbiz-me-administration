@@ -1413,6 +1413,11 @@ ${themeUi('.vbiz-icon-btn:hover')} {
 .vbiz-profile-root .vbiz-my-info-icon svg {
   color: inherit !important;
 }
+/* Modal titles (Notification Settings, unfollow confirm, etc.).
+   Avoid .vbiz-title here — it inherits --vbiz-page-header-fg (often black) and vanishes on dark modals. */
+.vbiz-profile-root .vbiz-modal-heading {
+  color: var(--vbiz-primary) !important;
+}
 .vbiz-modal-row-selected {
   background: linear-gradient(to bottom right, var(--vbiz-accent), var(--vbiz-accent-dark)) !important;
   color: var(--vbiz-secondary) !important;
