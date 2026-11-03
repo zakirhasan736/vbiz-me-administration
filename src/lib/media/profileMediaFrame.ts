@@ -134,6 +134,8 @@ export function profileMediaObjectFitSelectValue(frame: ProfileMediaFrame): Prof
 /**
  * CSS fallback when media/container pixels are unknown.
  * Prefer `profileMediaCoverLayoutStyle` in interactive previews and public feature media.
+ * For contain / fill / etc., prefer `profileMediaFramedObjectFitStyle` so the media
+ * fills the frame box and letterboxes against the black frame.
  */
 export function profileMediaFitStyle(frame: ProfileMediaFrame): {
   objectFit: ProfileMediaObjectFit
@@ -152,23 +154,32 @@ export function profileMediaFitStyle(frame: ProfileMediaFrame): {
 }
 
 /**
- * Keep the rendered media inside the frame when it is smaller than the box,
- * and keep empty gaps from appearing when it is larger (zoomed / panned).
+ * True CSS object-fit inside the full frame (black letterbox shows through).
+ * Used for contain / fill / none / scale-down so the image sits centered in the
+ * frame like `object-fit: contain` — matching the card-builder preview.
+ * Zoom scales from the focus point; drag updates object-position.
  */
-function clampMediaOffset(render: number, container: number, offset: number): number {
-  if (render <= container) {
-    return clamp(offset, 0, container - render)
+export function profileMediaFramedObjectFitStyle(frame: ProfileMediaFrame): CSSProperties {
+  const objectPosition = profileMediaObjectPosition(frame)
+  const objectFit = resolveProfileMediaObjectFit(frame)
+  return {
+    position: 'absolute',
+    inset: 0,
+    width: '100%',
+    height: '100%',
+    maxWidth: 'none',
+    objectFit,
+    objectPosition,
+    transform: frame.zoom === 1 ? 'none' : `scale(${frame.zoom})`,
+    transformOrigin: objectPosition,
   }
-  return clamp(offset, container - render, 0)
 }
 
 /**
- * Pixel-accurate cover / contain / fill / pan / zoom so left–right and top–bottom both move the image.
- * - cover: zoom 1 fills the frame (may crop); below 1 zooms out; above 1 zooms in
- * - contain: zoom 1 fits the whole image inside the frame (letterbox ok); zoom/position still work
- * - scale-down: like contain, but never larger than the media’s natural size
- * - fill: stretch to the frame, then zoom/pan
- * - none: natural pixel size × zoom, then pan
+ * Pixel-accurate cover / pan / zoom so left–right and top–bottom both move the image.
+ * - cover (default): zoom 1 fills the frame (may crop); below 1 zooms out; above 1 zooms in
+ * - contain / fill / none / scale-down: full-frame CSS object-fit so the black frame
+ *   letterboxes under the image (centered), with zoom + object-position still applied
  * Focus 0–100 places that point at the center of the visible frame.
  */
 export function profileMediaCoverLayoutStyle(
@@ -177,52 +188,22 @@ export function profileMediaCoverLayoutStyle(
   container: MediaPixelSize
 ): CSSProperties {
   if (media.width <= 0 || media.height <= 0 || container.width <= 0 || container.height <= 0) {
-    return {
-      ...profileMediaFitStyle(frame),
-      width: '100%',
-      height: '100%',
-    }
+    return profileMediaFramedObjectFitStyle(frame)
   }
 
+  // Explicit non-cover types → CSS object-fit inside the full frame (letterbox / pillarbox).
   // Unset objectFit keeps cover pan/zoom math (zoom < 1 = zoom out from cover).
-  // Explicit contain / fill / none / scale-down use their own base scales.
   const fit = frame.objectFit || 'cover'
-  const cw = container.width
-  const ch = container.height
-  const mw = media.width
-  const mh = media.height
-
-  let renderW: number
-  let renderH: number
-
-  if (fit === 'fill') {
-    renderW = cw * frame.zoom
-    renderH = ch * frame.zoom
-  } else if (fit === 'none') {
-    renderW = mw * frame.zoom
-    renderH = mh * frame.zoom
-  } else {
-    const coverScale = Math.max(cw / mw, ch / mh)
-    const containScale = Math.min(cw / mw, ch / mh)
-    let baseScale = fit === 'cover' ? coverScale : containScale
-    if (fit === 'scale-down') {
-      // Never upscale past 1 CSS-px per media-px (CSS scale-down).
-      baseScale = Math.min(containScale, 1)
-    }
-    const scale = baseScale * frame.zoom
-    renderW = mw * scale
-    renderH = mh * scale
+  if (fit !== 'cover') {
+    return profileMediaFramedObjectFitStyle({ ...frame, objectFit: fit })
   }
 
-  let left = cw / 2 - (frame.focusX / 100) * renderW
-  let top = ch / 2 - (frame.focusY / 100) * renderH
-
-  // Contain / scale-down: keep the image smartly inside the card frame while
-  // still honoring drag when zoomed in past the frame edges.
-  if (fit === 'contain' || fit === 'scale-down') {
-    left = clampMediaOffset(renderW, cw, left)
-    top = clampMediaOffset(renderH, ch, top)
-  }
+  const cover = Math.max(container.width / media.width, container.height / media.height)
+  const scale = cover * frame.zoom
+  const renderW = media.width * scale
+  const renderH = media.height * scale
+  const left = container.width / 2 - (frame.focusX / 100) * renderW
+  const top = container.height / 2 - (frame.focusY / 100) * renderH
 
   return {
     position: 'absolute',

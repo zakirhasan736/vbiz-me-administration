@@ -1,21 +1,18 @@
 'use client'
 
-import { SkeletonMediaShell, SkeletonVideo, useMediaLoadState } from '@/components/media/SkeletonMedia'
 import {
   parseProfileMediaFrame,
-  profileFeatureMediaAspectRatio,
   profileFeatureMediaMaxHeight,
-  profileMediaFitStyle,
   type ProfileMediaFrame,
 } from '@/lib/media/profileMediaFrame'
 import { encodeMediaUrl, isUsableImageSrc, isVideoUrl } from '@/lib/mediaUrl'
 import { CertificateImageLightbox, type CertificatePreview } from '@/profile-app/components/CertificateImageLightbox'
+import { PositionedFeatureMedia } from '@/profile-app/components/PositionedFeatureMedia'
 import { TruncatedClampText } from '@/profile-app/components/TruncatedClampText'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import { V3EmptyState, V3SectionHeader, V3SectionShell } from '@/profile-app/sections'
-import { ExternalLink, Layers, Maximize2 } from 'lucide-react'
+import { ExternalLink, Layers } from 'lucide-react'
 import { AnimatePresence } from 'motion/react'
-import Image from 'next/image'
 import { useState } from 'react'
 
 const RICH_PROSE =
@@ -68,72 +65,25 @@ function FeaturedMedia({
     )
   }
   if (!encoded) return null
-  const fit = frame ? profileMediaFitStyle(frame) : undefined
-  if (forceVideo || isVideoUrl(encoded)) {
-    return (
-      <SkeletonVideo
-        src={encoded}
-        fill
-        mediaClassName="object-cover"
-        style={fit}
-        controls
-        playsInline
-        preload="metadata"
-        aria-label={alt}
-        skeletonLabel="Loading media"
-      />
-    )
-  }
-  if (!isUsableImageSrc(encoded)) return null
-  return <FeaturedNextImage src={encoded} alt={alt} frame={frame} onOpenImage={onOpenImage} />
-}
-
-function FeaturedNextImage({
-  src,
-  alt,
-  frame,
-  onOpenImage,
-}: {
-  src: string
-  alt: string
-  frame?: ProfileMediaFrame | null
-  onOpenImage?: () => void
-}) {
-  const { loaded, markLoaded, markError } = useMediaLoadState(src)
-  const interactive = Boolean(onOpenImage)
+  if (!forceVideo && !isVideoUrl(encoded) && !isUsableImageSrc(encoded)) return null
 
   const media = (
-    <SkeletonMediaShell loading={!loaded} label="Loading media" className="absolute inset-0 h-full w-full">
-      <Image
-        src={src}
-        alt={alt}
-        fill
-        className={`transition-opacity duration-300 ${loaded ? 'opacity-100' : 'opacity-0'} ${
-          frame ? '' : 'object-cover'
-        }`}
-        style={frame ? profileMediaFitStyle(frame) : undefined}
-        sizes="(max-width: 768px) 100vw, 640px"
-        onLoadingComplete={markLoaded}
-        onError={markError}
-      />
-      {interactive ? (
-        <span
-          className="absolute right-3 bottom-3 z-10 flex h-10 w-10 items-center justify-center rounded-xl border border-white/25 bg-black/45 text-white shadow-sm backdrop-blur-md"
-          aria-hidden
-        >
-          <Maximize2 size={16} strokeWidth={2.25} />
-        </span>
-      ) : null}
-    </SkeletonMediaShell>
+    <PositionedFeatureMedia
+      src={encoded}
+      alt={alt}
+      frame={frame}
+      video={forceVideo || isVideoUrl(encoded)}
+      className="h-full w-full object-contain object-center"
+    />
   )
 
-  if (!interactive) return media
+  if (!onOpenImage) return media
 
   return (
     <button
       type="button"
       onClick={onOpenImage}
-      className="absolute inset-0 h-full w-full cursor-zoom-in text-left"
+      className="relative block w-full cursor-zoom-in text-left"
       aria-label={`View full image: ${alt}`}
     >
       {media}
@@ -182,10 +132,10 @@ export function CustomTabSection({ title, sectionName }: CustomTabSectionProps) 
               >
                 {media ? (
                   <div
-                    className="relative w-full overflow-hidden bg-zinc-900"
+                    className="relative w-full overflow-hidden bg-black"
                     style={
                       item.mediaFrame
-                        ? { aspectRatio: profileFeatureMediaAspectRatio(parseProfileMediaFrame(item.mediaFrame)) }
+                        ? undefined
                         : {
                             height: profileFeatureMediaMaxHeight(parseProfileMediaFrame(null), 240),
                             maxHeight: 360,
