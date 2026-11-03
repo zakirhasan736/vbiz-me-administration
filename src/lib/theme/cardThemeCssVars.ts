@@ -636,11 +636,16 @@ ${themeUi('.vbiz-icon-btn:hover')} {
 .vbiz-profile-root .vbiz-card .vcard-rich-html.vbiz-description {
   color: var(--vbiz-content-card-desc, var(--vbiz-text)) !important;
 }
-.vbiz-profile-root .vbiz-content-card img,
-.vbiz-profile-root .vbiz-card img {
+.vbiz-profile-root .vbiz-content-card img:not(.vbiz-feature-media-img),
+.vbiz-profile-root .vbiz-card img:not(.vbiz-feature-media-img) {
   object-fit: var(--vbiz-content-card-image-fit, cover);
   object-position: var(--vbiz-content-card-image-position, center);
   border-radius: var(--vbiz-content-card-image-radius, 1rem);
+}
+/* Featured / services crops own object-fit via inline style (contain/cover/fill). */
+.vbiz-profile-root .vbiz-feature-media img.vbiz-feature-media-img,
+.vbiz-profile-root .vbiz-feature-media video.vbiz-feature-media-img {
+  border-radius: 0;
 }
 .vbiz-profile-root .vbiz-content-card svg,
 .vbiz-profile-root .vbiz-card .vbiz-card-icon {

@@ -163,10 +163,21 @@ export function profileMediaFitStyle(frame: ProfileMediaFrame): {
   const explicit = frame.objectFit
   const objectFit = explicit || resolveProfileMediaObjectFit(frame)
 
-  if (isContainedObjectFit(objectFit) || objectFit === 'fill') {
+  if (isContainedObjectFit(objectFit)) {
+    const explicit = frame.objectFit === 'contain' || frame.objectFit === 'scale-down'
     return {
       objectFit,
-      objectPosition: isContainedObjectFit(objectFit) ? '50% 50%' : objectPosition,
+      objectPosition: '0% 0%',
+      // Explicit Contain keeps zoom. Inferred contain (zoom < 1, no object type) stays unscaled.
+      transform: explicit && frame.zoom !== 1 ? `scale(${frame.zoom})` : 'none',
+      transformOrigin: '0% 0%',
+    }
+  }
+
+  if (objectFit === 'fill') {
+    return {
+      objectFit,
+      objectPosition,
       transform: 'none',
       transformOrigin: '50% 50%',
     }
@@ -181,36 +192,34 @@ export function profileMediaFitStyle(frame: ProfileMediaFrame): {
 }
 
 /**
- * Fresh contain / scale-down crop: centered in the black frame, zoom 100%,
- * featured height back to the default frame (16:9 at height 1).
- * Ignores any prior cover pan/zoom/height so the image fits the frame cleanly.
+ * Switch to contain / scale-down: pin the image at the top-left and lock drag.
+ * Zoom and featured-frame height stay as they were.
  */
 export function resetFrameForContainedFit(
   fit: 'contain' | 'scale-down',
-  _current?: ProfileMediaFrame | null
+  current?: ProfileMediaFrame | null
 ): ProfileMediaFrame {
-  void _current
+  const base = current ? parseProfileMediaFrame(current) : parseProfileMediaFrame(null)
   return parseProfileMediaFrame({
-    focusX: 50,
-    focusY: 50,
-    zoom: 1,
-    height: 1,
+    ...base,
+    focusX: 0,
+    focusY: 0,
     objectFit: fit,
   })
 }
 
 /**
  * True CSS object-fit inside the full frame (black letterbox shows through).
- * - contain / scale-down: whole image visible, centered; zoom is ignored (would overflow)
+ * - contain / scale-down: width/height 100%, anchored top-left; zoom scales from that corner; drag is ignored
  * - fill: stretch to frame edges
  * - none: intrinsic size, clipped by the frame; zoom allowed
- * Drag updates object-position (free axis for contain = left/right or top/bottom).
  */
 export function profileMediaFramedObjectFitStyle(frame: ProfileMediaFrame): CSSProperties {
   const objectPosition = profileMediaObjectPosition(frame)
   const objectFit = frame.objectFit || resolveProfileMediaObjectFit(frame)
 
   if (isContainedObjectFit(objectFit)) {
+    const explicit = frame.objectFit === 'contain' || frame.objectFit === 'scale-down'
     return {
       position: 'absolute',
       inset: 0,
@@ -219,9 +228,9 @@ export function profileMediaFramedObjectFitStyle(frame: ProfileMediaFrame): CSSP
       maxWidth: '100%',
       maxHeight: '100%',
       objectFit,
-      objectPosition,
-      // Zoom must not apply — scale() makes contain look like cover/fill.
-      transform: 'none',
+      objectPosition: '0% 0%',
+      transform: explicit && frame.zoom !== 1 ? `scale(${frame.zoom})` : 'none',
+      transformOrigin: '0% 0%',
     }
   }
 

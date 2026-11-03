@@ -79,13 +79,14 @@ export function PositionedFeatureMedia({ src, alt, frame, className, video = fal
   return (
     <div
       ref={boxRef}
-      className="relative w-full overflow-hidden bg-black"
+      className="vbiz-feature-media relative w-full overflow-hidden bg-black"
       style={{ aspectRatio: profileFeatureMediaAspectRatio(resolved) }}
+      data-object-fit={resolved.objectFit || 'cover'}
     >
       {playVideo ? (
         <video
           src={src}
-          className="pointer-events-none"
+          className="vbiz-feature-media-img pointer-events-none"
           style={fit}
           muted
           loop
@@ -105,7 +106,7 @@ export function PositionedFeatureMedia({ src, alt, frame, className, video = fal
           src={src}
           alt={alt}
           draggable={false}
-          className="pointer-events-none"
+          className="vbiz-feature-media-img pointer-events-none"
           style={fit}
           onLoad={(event) => {
             const image = event.currentTarget
