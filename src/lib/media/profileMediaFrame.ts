@@ -167,10 +167,11 @@ export function profileMediaFitStyle(frame: ProfileMediaFrame): {
     const explicit = frame.objectFit === 'contain' || frame.objectFit === 'scale-down'
     return {
       objectFit,
-      objectPosition: '0% 0%',
+      // Contain leaves object-position unset so the browser uses the initial (auto) placement.
+      objectPosition: 'unset',
       // Explicit Contain keeps zoom. Inferred contain (zoom < 1, no object type) stays unscaled.
       transform: explicit && frame.zoom !== 1 ? `scale(${frame.zoom})` : 'none',
-      transformOrigin: '0% 0%',
+      transformOrigin: 'center',
     }
   }
 
@@ -210,7 +211,7 @@ export function resetFrameForContainedFit(
 
 /**
  * True CSS object-fit inside the full frame (black letterbox shows through).
- * - contain / scale-down: width/height 100%, anchored top-left; zoom scales from that corner; drag is ignored
+ * - contain / scale-down: width/height 100%; object-position stays unset; drag is ignored; zoom still scales
  * - fill: stretch to frame edges
  * - none: intrinsic size, clipped by the frame; zoom allowed
  */
@@ -228,9 +229,9 @@ export function profileMediaFramedObjectFitStyle(frame: ProfileMediaFrame): CSSP
       maxWidth: '100%',
       maxHeight: '100%',
       objectFit,
-      objectPosition: '0% 0%',
+      objectPosition: 'unset',
       transform: explicit && frame.zoom !== 1 ? `scale(${frame.zoom})` : 'none',
-      transformOrigin: '0% 0%',
+      transformOrigin: 'center',
     }
   }
 

@@ -83,7 +83,7 @@ describe('profile media frame', () => {
     expect(style.width).toBe('100%')
     expect(style.height).toBe('100%')
     expect(style.objectFit).toBe('contain')
-    expect(style.objectPosition).toBe('0% 0%')
+    expect(style.objectPosition).toBe('unset')
     expect(style.transform).toBe('none')
   })
 
@@ -93,9 +93,9 @@ describe('profile media frame', () => {
     expect(style.objectFit).toBe('contain')
     expect(style.width).toBe('100%')
     expect(style.height).toBe('100%')
-    expect(style.objectPosition).toBe('0% 0%')
+    expect(style.objectPosition).toBe('unset')
     expect(style.transform).toBe('scale(1.4)')
-    expect(style.transformOrigin).toBe('0% 0%')
+    expect(style.transformOrigin).toBe('center')
   })
 
   it('fill stretches to the frame without scale overflow', () => {
