@@ -57,9 +57,12 @@ export function buildCreateCrmEventPayload(payload: CreateCrmEventSubmitPayload)
   }
 
   if (payload.scope === 'global') {
+    // Global wishes target every lead in the actor's CRM scope (corporate pool or
+    // single card). Do not pin profileId — that made corporate wishes look like
+    // "leads not found for this card" when the picker had an owner card selected.
     return {
       ...base,
-      profileId: payload.owner?.profileId ?? null,
+      profileId: null,
     }
   }
 
