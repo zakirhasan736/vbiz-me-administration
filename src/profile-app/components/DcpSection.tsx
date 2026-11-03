@@ -2,14 +2,14 @@
 
 import type { DynamicPostListItem } from '@/interfaces/api/dynamicPosts.interface'
 import { stripHtml } from '@/lib/api/calendar/resolveCalendarItemUrl'
-import { profileMediaFitStyle } from '@/lib/media/profileMediaFrame'
 import { PUBLIC_SECTION_NAMES } from '@/lib/vcardPublicSectionNames'
+import { FeaturedCardMedia } from '@/profile-app/components/FeaturedCardMedia'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
 import { PublicTabFrame, V3ErrorState, V3PreviewAwareText } from '@/profile-app/sections'
 import { useGetDynamicSectionQuery } from '@/redux/api'
+import { cn } from '@/utils/cn'
 import { FileText } from 'lucide-react'
-import Image from 'next/image'
 import type { CSSProperties, ReactNode } from 'react'
 
 function resolveDcpImage(item: DynamicPostListItem): string {
@@ -47,14 +47,19 @@ function DcpCard({ item, accent }: { item: DynamicPostListItem; accent: string }
       />
       <div className="mx-auto flex max-w-3xl flex-col items-center text-center">
         {imageUrl ? (
-          <div className="relative mb-6 h-36 w-36 overflow-hidden rounded-xl border border-zinc-200/80 bg-white shadow-md transition-transform duration-300 group-hover:scale-105 sm:mb-8 md:h-40 md:w-40 dark:border-zinc-700 dark:bg-zinc-950">
-            <Image
+          <div
+            className={cn(
+              'relative mb-6 overflow-hidden rounded-xl border border-zinc-200/80 bg-white shadow-md transition-transform duration-300 group-hover:scale-105 sm:mb-8 dark:border-zinc-700 dark:bg-zinc-950',
+              !item.mediaFrame && 'h-36 w-36 md:h-40 md:w-40'
+            )}
+          >
+            <FeaturedCardMedia
               src={imageUrl}
               alt={item.title.trim() || ''}
-              fill
-              className="object-contain p-2"
-              sizes="160px"
-              style={item.mediaFrame ? profileMediaFitStyle(item.mediaFrame) : undefined}
+              frame={item.mediaFrame}
+              className="h-full w-full"
+              unframedHeightClassName="h-full"
+              mediaClassName="h-full w-full object-contain object-center p-2"
             />
           </div>
         ) : null}

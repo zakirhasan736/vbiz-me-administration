@@ -2,8 +2,8 @@
 
 import type { DynamicPostListItem } from '@/interfaces/api/dynamicPosts.interface'
 import { stripHtml } from '@/lib/api/calendar/resolveCalendarItemUrl'
-import { profileMediaFitStyle } from '@/lib/media/profileMediaFrame'
 import { PUBLIC_SECTION_NAMES } from '@/lib/vcardPublicSectionNames'
+import { FeaturedCardMedia } from '@/profile-app/components/FeaturedCardMedia'
 import { contentGridClass } from '@/profile-app/lib/contentGridClass'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
@@ -62,15 +62,20 @@ function InventoryCard({ item, idx, accent, onSelect }: InventoryCardProps) {
       disabled={!hasDetail}
       className={`group flex h-full w-full flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white text-left shadow-sm transition-all duration-300 hover:shadow-md dark:border-zinc-800/80 dark:bg-zinc-900/50 dark:hover:border-zinc-700 ${hasDetail ? 'cursor-pointer' : 'cursor-default'}`}
     >
-      <div className="relative h-48 overflow-hidden bg-zinc-100 dark:bg-zinc-950">
+      <div
+        className={cn(
+          'relative overflow-hidden bg-zinc-100 dark:bg-zinc-950',
+          (!imageUrl || !item.mediaFrame) && 'h-48'
+        )}
+      >
         {imageUrl ? (
-          <Image
-            width={640}
-            height={360}
+          <FeaturedCardMedia
             src={imageUrl}
-            alt={item.title}
-            className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
-            style={item.mediaFrame ? profileMediaFitStyle(item.mediaFrame) : undefined}
+            alt={item.title.trim() || ''}
+            frame={item.mediaFrame}
+            className={item.mediaFrame ? 'w-full' : 'h-full'}
+            unframedHeightClassName="h-full"
+            mediaClassName="h-full w-full object-cover object-center transition-transform duration-700 group-hover:scale-105"
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center bg-zinc-200 dark:bg-zinc-800">
@@ -141,15 +146,19 @@ function InventoryItemDetail({ item, sectionTitle, accent, onBack }: InventoryIt
 
       <article className="overflow-hidden rounded-3xl border border-zinc-200 bg-white/50 backdrop-blur-xl dark:border-zinc-800/80 dark:bg-zinc-900/50">
         {heroImage ? (
-          <div className="relative aspect-21/9 w-full overflow-hidden bg-zinc-100 dark:bg-zinc-950">
-            <Image
+          <div
+            className={cn(
+              'relative w-full overflow-hidden bg-zinc-100 dark:bg-zinc-950',
+              !item.mediaFrame && 'aspect-21/9'
+            )}
+          >
+            <FeaturedCardMedia
               src={heroImage}
-              alt={item.title}
-              fill
-              className="object-cover"
-              priority
-              sizes="100vw"
-              style={item.mediaFrame ? profileMediaFitStyle(item.mediaFrame) : undefined}
+              alt={item.title.trim() || ''}
+              frame={item.mediaFrame}
+              className={item.mediaFrame ? 'w-full' : 'absolute inset-0 h-full w-full'}
+              unframedHeightClassName="h-full"
+              mediaClassName="h-full w-full object-cover object-center"
             />
             <div className="absolute inset-0 bg-linear-to-t from-zinc-950/70 via-zinc-950/20 to-transparent" />
             <div className="absolute right-0 bottom-0 left-0 p-8 lg:p-10">

@@ -1,6 +1,6 @@
 'use client'
 
-import { profileMediaFitStyle } from '@/lib/media/profileMediaFrame'
+import { FeaturedCardMedia } from '@/profile-app/components/FeaturedCardMedia'
 import { contentGridClass } from '@/profile-app/lib/contentGridClass'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import { SectionBannerBody, V3ErrorState, V3PreviewAwareText } from '@/profile-app/sections'
@@ -8,7 +8,6 @@ import { useGetClientsQuery } from '@/redux/api'
 import { cn } from '@/utils/cn'
 import { ArrowRight, ExternalLink, Handshake } from 'lucide-react'
 import { motion } from 'motion/react'
-import Image from 'next/image'
 import Link from 'next/link'
 
 const SKELETON_CARD_COUNT = 6
@@ -142,20 +141,26 @@ export const ClientsSection = () => {
                 className="group relative flex flex-col overflow-hidden rounded-3xl border border-zinc-200 bg-white/50 shadow-sm backdrop-blur-xl transition-colors duration-300 hover:bg-white/80 dark:border-zinc-800/80 dark:bg-zinc-900/50 dark:hover:bg-zinc-900/80"
               >
                 <div
-                  className={cn('relative overflow-hidden bg-zinc-100 dark:bg-zinc-950', tallImage ? 'h-80' : 'h-56')}
+                  className={cn(
+                    'relative overflow-hidden bg-black',
+                    !client.mediaFrame && (tallImage ? 'h-80' : 'h-56')
+                  )}
                 >
                   {client.logo ? (
-                    <Image
-                      width={400}
-                      height={tallImage ? 320 : 300}
+                    <FeaturedCardMedia
                       src={client.logo}
                       alt={client.name}
-                      className="h-full w-full object-cover object-top opacity-80 grayscale-50 transition-all duration-700 group-hover:scale-105 group-hover:opacity-90 group-hover:grayscale-0"
-                      style={client.mediaFrame ? profileMediaFitStyle(client.mediaFrame) : undefined}
+                      frame={client.mediaFrame}
+                      className="w-full"
+                      unframedHeightClassName="h-full"
+                      mediaClassName="h-full w-full object-cover object-top opacity-80 grayscale-50 transition-all duration-700 group-hover:scale-105 group-hover:opacity-90 group-hover:grayscale-0"
                     />
                   ) : (
                     <div
-                      className="flex h-full w-full items-center justify-center text-4xl font-black"
+                      className={cn(
+                        'flex w-full items-center justify-center text-4xl font-black',
+                        tallImage ? 'h-80' : 'h-56'
+                      )}
                       style={clientPlaceholderStyle(client.name)}
                       aria-label={`${client.name} logo unavailable`}
                     >

@@ -2,6 +2,7 @@
 
 import {
   DEFAULT_FEATURE_MEDIA_FRAME,
+  isContainedObjectFit,
   parseProfileMediaFrame,
   PROFILE_FRAME_HEIGHT_MAX,
   PROFILE_FRAME_HEIGHT_MIN,
@@ -13,6 +14,7 @@ import {
   profileMediaCoverLayoutStyle,
   profileMediaFramedObjectFitStyle,
   profileMediaObjectFitSelectValue,
+  resetFrameForContainedFit,
   type MediaPixelSize,
   type ProfileMediaFrame,
   type ProfileMediaObjectFit,
@@ -65,12 +67,25 @@ export function AvatarMediaFramePreview({
       ? { ...DEFAULT_FEATURE_MEDIA_FRAME }
       : parseProfileMediaFrame(null)
   const featureLayout = layout === 'feature'
-  const useCoverMath = (resolved.objectFit || 'cover') === 'cover'
-  // Contain / fill / etc. → CSS object-fit in the black frame (letterbox). Cover → pixel pan/zoom.
+  const objectFit = profileMediaObjectFitSelectValue(resolved)
+  const contained = featureLayout && isContainedObjectFit(resolved.objectFit)
+  const useCoverMath = !featureLayout || objectFit === 'cover'
+  // While Contain is active, keep zoom/drag locked to the clean centered defaults.
+  const displayFrame =
+    contained && resolved.objectFit
+      ? parseProfileMediaFrame({
+          ...resolved,
+          focusX: 50,
+          focusY: 50,
+          zoom: 1,
+          objectFit: resolved.objectFit,
+        })
+      : resolved
+  // Contain / fill / etc. → CSS object-fit in the black frame. Cover → pixel pan/zoom.
   const fit =
     useCoverMath && mediaSize && boxSize
-      ? profileMediaCoverLayoutStyle(resolved, mediaSize, boxSize)
-      : profileMediaFramedObjectFitStyle(resolved)
+      ? profileMediaCoverLayoutStyle(displayFrame, mediaSize, boxSize)
+      : profileMediaFramedObjectFitStyle(displayFrame)
 
   useEffect(() => {
     if (!useCoverMath) return
@@ -89,6 +104,7 @@ export function AvatarMediaFramePreview({
   }, [featureLayout, resolved.height, useCoverMath])
 
   const updateFromPointer = (clientX: number, clientY: number) => {
+    if (contained) return
     const start = dragRef.current
     const box = boxRef.current
     if (!start || !box) return
@@ -108,14 +124,16 @@ export function AvatarMediaFramePreview({
 
   const patchFrame = (patch: Partial<ProfileMediaFrame>) => onChange(parseProfileMediaFrame({ ...resolved, ...patch }))
 
+  const helpText = featureLayout
+    ? contained
+      ? 'Contain fits the whole image inside the frame height. Zoom and drag reset and stay locked so nothing overflows.'
+      : 'Drag to reposition. Set image object type and height — the public card uses these settings.'
+    : 'Drag the photo or video to set top, center, or bottom, and left or right. Zoom in or out — the preview uses that position.'
+
   return (
     <div className={compact ? 'space-y-2.5' : 'space-y-3'}>
       {!compact ? (
-        <p className="text-[12px] font-medium text-slate-600 dark:text-slate-300">
-          {featureLayout
-            ? 'Drag to reposition. Set image object type and height — the public card uses these settings.'
-            : 'Drag the photo or video to set top, center, or bottom, and left or right. Zoom in or out — the preview uses that position.'}
-        </p>
+        <p className="text-[12px] font-medium text-slate-600 dark:text-slate-300">{helpText}</p>
       ) : (
         <p className="text-[11px] font-semibold tracking-wide text-slate-500 uppercase dark:text-slate-400">
           Zoom & frame
@@ -123,15 +141,16 @@ export function AvatarMediaFramePreview({
       )}
       <div
         ref={boxRef}
-        className={`relative w-full cursor-grab touch-none overflow-hidden rounded-3xl border border-slate-200/80 bg-black select-none dark:border-white/10 ${
-          dragging ? 'cursor-grabbing ring-2 ring-emerald-500/60' : ''
+        className={`relative w-full touch-none overflow-hidden rounded-3xl border border-slate-200/80 bg-black select-none dark:border-white/10 ${
+          contained ? 'cursor-default' : dragging ? 'cursor-grabbing ring-2 ring-emerald-500/60' : 'cursor-grab'
         }`}
         style={
           featureLayout
-            ? { aspectRatio: profileFeatureMediaAspectRatio(resolved) }
-            : { height: profileFramePreviewHeight(resolved) }
+            ? { aspectRatio: profileFeatureMediaAspectRatio(displayFrame) }
+            : { height: profileFramePreviewHeight(displayFrame) }
         }
         onPointerDown={(event) => {
+          if (contained) return
           if ((event.target as HTMLElement).closest('button')) return
           event.preventDefault()
           event.currentTarget.setPointerCapture(event.pointerId)
@@ -144,7 +163,7 @@ export function AvatarMediaFramePreview({
           setDragging(true)
         }}
         onPointerMove={(event) => {
-          if (!dragRef.current) return
+          if (contained || !dragRef.current) return
           updateFromPointer(event.clientX, event.clientY)
         }}
         onPointerUp={(event) => {
@@ -159,7 +178,13 @@ export function AvatarMediaFramePreview({
           setDragging(false)
         }}
         role="application"
-        aria-label={featureLayout ? 'Drag featured media position' : 'Drag avatar position'}
+        aria-label={
+          contained
+            ? 'Contained image preview'
+            : featureLayout
+              ? 'Drag featured media position'
+              : 'Drag avatar position'
+        }
       >
         {kind === 'video' ? (
           <video
@@ -197,16 +222,16 @@ export function AvatarMediaFramePreview({
         )}
         <div
           className="pointer-events-none absolute inset-y-0 border-l border-dashed border-white/70"
-          style={{ left: `${resolved.focusX}%` }}
+          style={{ left: `${displayFrame.focusX}%` }}
         />
         <div
           className="pointer-events-none absolute inset-x-0 border-t border-dashed border-white/70"
-          style={{ top: `${resolved.focusY}%` }}
+          style={{ top: `${displayFrame.focusY}%` }}
         />
         <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center p-3">
           <span className="inline-flex items-center gap-1.5 rounded-full bg-black/55 px-3 py-1.5 text-[11px] font-semibold tracking-wide text-white uppercase backdrop-blur-sm">
             <Move className="h-3.5 w-3.5" />
-            {dragging ? 'Release to set' : 'Drag to reposition'}
+            {contained ? 'Contained in frame' : dragging ? 'Release to set' : 'Drag to reposition'}
           </span>
         </div>
         {onRemove ? (
@@ -223,24 +248,29 @@ export function AvatarMediaFramePreview({
       </div>
 
       <div className={`flex flex-wrap items-center gap-3 ${compact ? 'gap-2' : ''}`}>
-        <div className="inline-flex items-center overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-white/10 dark:bg-[#0b0f19]">
+        <div
+          className={`inline-flex items-center overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-white/10 dark:bg-[#0b0f19] ${
+            contained ? 'opacity-50' : ''
+          }`}
+          title={contained ? 'Zoom is locked for Contain so the image stays inside the frame' : undefined}
+        >
           <button
             type="button"
             className="px-3 py-2 text-slate-700 hover:bg-slate-50 disabled:opacity-40 dark:text-slate-200 dark:hover:bg-white/5"
             aria-label="Zoom out"
-            disabled={resolved.zoom <= PROFILE_FRAME_ZOOM_MIN}
+            disabled={contained || resolved.zoom <= PROFILE_FRAME_ZOOM_MIN}
             onClick={() => patchFrame({ zoom: resolved.zoom - 0.1 })}
           >
             <Minus className="h-4 w-4" />
           </button>
           <span className="min-w-14 px-2 text-center text-[12px] font-bold text-slate-700 dark:text-slate-200">
-            {Math.round(resolved.zoom * 100)}%
+            {contained ? '100%' : `${Math.round(resolved.zoom * 100)}%`}
           </span>
           <button
             type="button"
             className="px-3 py-2 text-slate-700 hover:bg-slate-50 disabled:opacity-40 dark:text-slate-200 dark:hover:bg-white/5"
             aria-label="Zoom in"
-            disabled={resolved.zoom >= PROFILE_FRAME_ZOOM_MAX}
+            disabled={contained || resolved.zoom >= PROFILE_FRAME_ZOOM_MAX}
             onClick={() => patchFrame({ zoom: resolved.zoom + 0.1 })}
           >
             <Plus className="h-4 w-4" />
@@ -251,16 +281,16 @@ export function AvatarMediaFramePreview({
           <label className="flex min-w-[160px] flex-col gap-1 text-[12px] font-bold text-slate-600 dark:text-slate-300">
             Image object type
             <select
-              value={profileMediaObjectFitSelectValue(resolved)}
+              value={objectFit}
               aria-label="Image object type"
               onChange={(event) => {
-                const objectFit = event.target.value as ProfileMediaObjectFit
-                // Contain / scale-down: center in the black frame so letterboxing is even.
-                if (objectFit === 'contain' || objectFit === 'scale-down') {
-                  patchFrame({ objectFit, focusX: 50, focusY: 50 })
+                const next = event.target.value as ProfileMediaObjectFit
+                // Contain / scale-down: full reset — zoom, drag, and frame height back to defaults.
+                if (next === 'contain' || next === 'scale-down') {
+                  onChange(resetFrameForContainedFit(next, resolved))
                   return
                 }
-                patchFrame({ objectFit })
+                patchFrame({ objectFit: next })
               }}
               className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[12px] font-semibold text-slate-800 outline-none focus:border-emerald-500 dark:border-white/10 dark:bg-[#0b0f19] dark:text-slate-100"
             >
@@ -273,7 +303,12 @@ export function AvatarMediaFramePreview({
           </label>
         ) : null}
 
-        <label className="flex min-w-[180px] flex-1 flex-col gap-1 text-[12px] font-bold text-slate-600 dark:text-slate-300">
+        <label
+          className={`flex min-w-[180px] flex-1 flex-col gap-1 text-[12px] font-bold text-slate-600 dark:text-slate-300 ${
+            contained ? 'opacity-50' : ''
+          }`}
+          title={contained ? 'Frame height resets with Contain and stays at the default frame' : undefined}
+        >
           {featureLayout ? 'Featured image height' : 'Height'}
           <div className="flex items-center gap-2">
             <input
@@ -281,13 +316,14 @@ export function AvatarMediaFramePreview({
               min={PROFILE_FRAME_HEIGHT_MIN}
               max={PROFILE_FRAME_HEIGHT_MAX}
               step={0.05}
-              value={resolved.height}
+              value={displayFrame.height}
+              disabled={contained}
               aria-label={featureLayout ? 'Adjust featured image height' : 'Adjust avatar height'}
               onChange={(event) => patchFrame({ height: Number(event.target.value) })}
-              className="w-full accent-emerald-600"
+              className="w-full accent-emerald-600 disabled:cursor-not-allowed"
             />
             <span className="min-w-10 text-right text-[11px] font-bold text-slate-500 dark:text-slate-400">
-              {Math.round(resolved.height * 100)}%
+              {Math.round(displayFrame.height * 100)}%
             </span>
           </div>
         </label>

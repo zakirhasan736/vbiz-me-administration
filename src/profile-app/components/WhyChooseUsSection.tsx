@@ -2,16 +2,16 @@
 
 import type { DynamicPostListItem } from '@/interfaces/api/dynamicPosts.interface'
 import { stripHtml } from '@/lib/api/calendar/resolveCalendarItemUrl'
-import { profileMediaFitStyle } from '@/lib/media/profileMediaFrame'
 import { PUBLIC_SECTION_NAMES } from '@/lib/vcardPublicSectionNames'
+import { FeaturedCardMedia } from '@/profile-app/components/FeaturedCardMedia'
 import { TruncatedClampText } from '@/profile-app/components/TruncatedClampText'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
 import { PublicTabFrame, V3ErrorState, V3PreviewAwareText } from '@/profile-app/sections'
 import { useGetDynamicSectionQuery } from '@/redux/api'
+import { cn } from '@/utils/cn'
 import { ArrowUpRight, Landmark, Quote } from 'lucide-react'
 import { motion } from 'motion/react'
-import Image from 'next/image'
 import type { ReactNode } from 'react'
 
 function resolveWhyChooseUsImage(item: DynamicPostListItem): string {
@@ -54,14 +54,19 @@ function WhyChooseUsCard({
       <div className="relative z-10">
         {imageUrl ? (
           <div className="mb-8 flex justify-center">
-            <div className="relative h-40 w-40 overflow-hidden rounded-4xl border border-zinc-200 bg-white shadow-xl transition-all duration-500 group-hover:-translate-y-2 lg:h-56 lg:w-56 dark:border-zinc-800/80 dark:bg-zinc-950 dark:shadow-2xl">
-              <Image
+            <div
+              className={cn(
+                'relative overflow-hidden rounded-4xl border border-zinc-200 bg-white shadow-xl transition-all duration-500 group-hover:-translate-y-2 dark:border-zinc-800/80 dark:bg-zinc-950 dark:shadow-2xl',
+                !item.mediaFrame && 'h-40 w-40 lg:h-56 lg:w-56'
+              )}
+            >
+              <FeaturedCardMedia
                 src={imageUrl}
-                alt={item.title}
-                width={256}
-                height={256}
-                className="h-full w-full object-cover"
-                style={item.mediaFrame ? profileMediaFitStyle(item.mediaFrame) : undefined}
+                alt={item.title.trim() || ''}
+                frame={item.mediaFrame}
+                className="h-full w-full"
+                unframedHeightClassName="h-full"
+                mediaClassName="h-full w-full object-cover object-center"
               />
             </div>
           </div>

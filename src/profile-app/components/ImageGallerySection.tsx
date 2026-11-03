@@ -166,7 +166,7 @@ function ImageWithPlaceholder({
             objectFit === 'cover' ? 'object-cover' : 'object-contain',
             isLoaded ? 'opacity-100' : 'opacity-0'
           )}
-          style={frame && objectFit === 'cover' ? profileMediaFitStyle(frame) : undefined}
+          style={frame ? profileMediaFitStyle(frame) : undefined}
         />
       ) : null}
       {hasError ? (
@@ -235,7 +235,14 @@ function GalleryMediaPreview({ item, lockedAspect }: { item: GalleryListItem; lo
             muted
             playsInline
             preload="metadata"
-            className="absolute inset-0 h-full w-full object-cover"
+            className={cn(
+              'absolute inset-0 h-full w-full',
+              item.mediaFrame?.objectFit === 'contain' || item.mediaFrame?.objectFit === 'scale-down'
+                ? 'object-contain'
+                : item.mediaFrame?.objectFit === 'fill'
+                  ? 'object-fill'
+                  : 'object-cover'
+            )}
             style={item.mediaFrame ? profileMediaFitStyle(item.mediaFrame) : undefined}
             aria-label={item.title}
           />

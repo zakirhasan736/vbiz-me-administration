@@ -2,8 +2,8 @@
 
 import type { DynamicPostListItem } from '@/interfaces/api/dynamicPosts.interface'
 import { resolveCalendarItemUrl, stripHtml } from '@/lib/api/calendar/resolveCalendarItemUrl'
-import { profileMediaFitStyle } from '@/lib/media/profileMediaFrame'
 import { PUBLIC_SECTION_NAMES } from '@/lib/vcardPublicSectionNames'
+import { FeaturedCardMedia } from '@/profile-app/components/FeaturedCardMedia'
 import { contentGridClass } from '@/profile-app/lib/contentGridClass'
 import { useProfileDisplay } from '@/profile-app/lib/profileDisplayContext'
 import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
@@ -12,8 +12,6 @@ import { useGetDynamicSectionQuery } from '@/redux/api'
 import { cn } from '@/utils/cn'
 import { ArrowUpRight, Calendar, Clock, Video } from 'lucide-react'
 import { motion } from 'motion/react'
-import Image from 'next/image'
-
 const SKELETON_CARD_COUNT = 3
 
 function CalendarCardSkeleton({ delay }: { delay: number }) {
@@ -48,14 +46,19 @@ function CalendarItemCard({ item, idx }: { item: DynamicPostListItem; idx: numbe
       <div className="pointer-events-none absolute top-0 right-0 -mt-8 -mr-8 rounded-full bg-black/5 p-16 opacity-0 blur-2xl transition-opacity duration-500 group-hover:opacity-100 dark:bg-white/5" />
 
       {imageUrl ? (
-        <div className="mb-6 h-52 w-full overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800/80">
-          <Image
-            width={300}
-            height={400}
+        <div
+          className={cn(
+            'mb-6 w-full overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800/80',
+            !item.mediaFrame && 'h-52'
+          )}
+        >
+          <FeaturedCardMedia
             src={imageUrl}
             alt={item.title.trim() || ''}
-            className="h-full w-full object-contain"
-            style={item.mediaFrame ? profileMediaFitStyle(item.mediaFrame) : undefined}
+            frame={item.mediaFrame}
+            className="w-full"
+            unframedHeightClassName="h-full"
+            mediaClassName="h-full w-full object-contain object-center"
           />
         </div>
       ) : (
