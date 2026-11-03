@@ -103,11 +103,19 @@ function ownerFromLead(lead: CrmLeadRow): ProfileOwnerSelection {
 /** Event mail goes to the lead/guest when they have an email; card remains the profile scope. */
 function eventRecipientFromLead(lead: CrmLeadRow): ProfileOwnerSelection {
   const guestEmail = lead.email?.trim().toLowerCase()
+  // Prefer the card that owns this exact lead id (grouped rows can list many cards).
+  const owningCard =
+    lead.cards?.find((card) => card.leadId === lead.id) ||
+    lead.cards?.find((card) => card.profileId === lead.vCardId) ||
+    null
+  const profileId = owningCard?.profileId || lead.vCardId
   return {
-    profileId: lead.vCardId,
+    profileId,
     hostName: lead.fullName?.trim() || lead.vCardName || lead.ownerName || 'Guest',
     ownerEmails: guestEmail ? [guestEmail] : [],
-    identity: [lead.vCardName || lead.vCardSlug, guestEmail || lead.phoneNumber].filter(Boolean).join(' · '),
+    identity: [owningCard?.name || owningCard?.slug || lead.vCardName || lead.vCardSlug, guestEmail || lead.phoneNumber]
+      .filter(Boolean)
+      .join(' · '),
     guestUserDataId: lead.id,
   }
 }
