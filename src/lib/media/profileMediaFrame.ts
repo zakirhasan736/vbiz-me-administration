@@ -136,6 +136,11 @@ export function isContainedObjectFit(fit: ProfileMediaObjectFit | undefined): bo
   return fit === 'contain' || fit === 'scale-down'
 }
 
+/** Contain drag stays locked at 100% zoom and unlocks after zoom in or zoom out. */
+export function containedFitDragUnlocked(frame: ProfileMediaFrame): boolean {
+  return isContainedObjectFit(frame.objectFit) && frame.zoom !== 1
+}
+
 /** Tailwind object-* class matching a saved mediaFrame (avoids object-cover fighting contain). */
 export function featureMediaObjectClassName(frame?: ProfileMediaFrame | null, fallback = 'object-cover'): string {
   if (!frame) return fallback
@@ -164,14 +169,13 @@ export function profileMediaFitStyle(frame: ProfileMediaFrame): {
   const objectFit = explicit || resolveProfileMediaObjectFit(frame)
 
   if (isContainedObjectFit(objectFit)) {
-    const explicit = frame.objectFit === 'contain' || frame.objectFit === 'scale-down'
+    const zoomed = containedFitDragUnlocked(frame)
     return {
       objectFit,
-      // Contain leaves object-position unset so the browser uses the initial (auto) placement.
-      objectPosition: 'unset',
-      // Explicit Contain keeps zoom. Inferred contain (zoom < 1, no object type) stays unscaled.
-      transform: explicit && frame.zoom !== 1 ? `scale(${frame.zoom})` : 'none',
-      transformOrigin: 'center',
+      // 100% contain leaves object-position unset. Zoom unlocks drag via focus.
+      objectPosition: zoomed ? objectPosition : 'unset',
+      transform: zoomed ? `scale(${frame.zoom})` : 'none',
+      transformOrigin: zoomed ? objectPosition : 'center',
     }
   }
 
@@ -193,8 +197,8 @@ export function profileMediaFitStyle(frame: ProfileMediaFrame): {
 }
 
 /**
- * Switch to contain / scale-down: pin the image at the top-left and lock drag.
- * Zoom and featured-frame height stay as they were.
+ * Switch to contain / scale-down. Zoom and frame height stay.
+ * Drag stays locked until zoom leaves 100%, then focus pans the image.
  */
 export function resetFrameForContainedFit(
   fit: 'contain' | 'scale-down',
@@ -203,15 +207,14 @@ export function resetFrameForContainedFit(
   const base = current ? parseProfileMediaFrame(current) : parseProfileMediaFrame(null)
   return parseProfileMediaFrame({
     ...base,
-    focusX: 0,
-    focusY: 0,
     objectFit: fit,
   })
 }
 
 /**
  * True CSS object-fit inside the full frame (black letterbox shows through).
- * - contain / scale-down: width/height 100%; object-position stays unset; drag is ignored; zoom still scales
+ * - contain / scale-down at 100%: width/height 100%, object-position unset, drag ignored
+ * - contain / scale-down zoomed: same box, object-position follows drag (top/bottom and left/right)
  * - fill: stretch to frame edges
  * - none: intrinsic size, clipped by the frame; zoom allowed
  */
@@ -220,7 +223,7 @@ export function profileMediaFramedObjectFitStyle(frame: ProfileMediaFrame): CSSP
   const objectFit = frame.objectFit || resolveProfileMediaObjectFit(frame)
 
   if (isContainedObjectFit(objectFit)) {
-    const explicit = frame.objectFit === 'contain' || frame.objectFit === 'scale-down'
+    const zoomed = containedFitDragUnlocked(frame)
     return {
       position: 'absolute',
       inset: 0,
@@ -229,9 +232,9 @@ export function profileMediaFramedObjectFitStyle(frame: ProfileMediaFrame): CSSP
       maxWidth: '100%',
       maxHeight: '100%',
       objectFit,
-      objectPosition: 'unset',
-      transform: explicit && frame.zoom !== 1 ? `scale(${frame.zoom})` : 'none',
-      transformOrigin: 'center',
+      objectPosition: zoomed ? objectPosition : 'unset',
+      transform: zoomed ? `scale(${frame.zoom})` : 'none',
+      transformOrigin: zoomed ? objectPosition : 'center',
     }
   }
 
@@ -281,6 +284,22 @@ export function profileMediaCoverLayoutStyle(
   // Explicit non-cover types → CSS object-fit inside the full frame (letterbox / pillarbox).
   // Unset objectFit keeps cover pan/zoom math (zoom < 1 = zoom out from cover).
   const fit = frame.objectFit || 'cover'
+  if (fit === 'contain' || fit === 'scale-down') {
+    if (frame.zoom === 1) return profileMediaFramedObjectFitStyle({ ...frame, objectFit: fit })
+    const contain = Math.min(container.width / media.width, container.height / media.height)
+    const scale = contain * frame.zoom
+    const renderW = media.width * scale
+    const renderH = media.height * scale
+    return {
+      position: 'absolute',
+      width: renderW,
+      height: renderH,
+      left: container.width / 2 - (frame.focusX / 100) * renderW,
+      top: container.height / 2 - (frame.focusY / 100) * renderH,
+      maxWidth: 'none',
+      objectFit: 'fill',
+    }
+  }
   if (fit !== 'cover') {
     return profileMediaFramedObjectFitStyle({ ...frame, objectFit: fit })
   }

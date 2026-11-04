@@ -1,6 +1,7 @@
 'use client'
 
 import {
+  containedFitDragUnlocked,
   DEFAULT_FEATURE_MEDIA_FRAME,
   isContainedObjectFit,
   parseProfileMediaFrame,
@@ -69,15 +70,16 @@ export function AvatarMediaFramePreview({
   const featureLayout = layout === 'feature'
   const objectFit = profileMediaObjectFitSelectValue(resolved)
   const contained = featureLayout && isContainedObjectFit(resolved.objectFit)
-  const useCoverMath = !featureLayout || objectFit === 'cover'
-  // Contain / fill / etc. → CSS object-fit in the black frame. Cover → pixel pan/zoom.
+  const dragLocked = contained && !containedFitDragUnlocked(resolved)
+  const usePixelMath = !featureLayout || objectFit === 'cover' || (contained && resolved.zoom !== 1)
+  // Contain at 100% → CSS object-fit, drag locked. Zoomed contain and cover → pixel pan.
   const fit =
-    useCoverMath && mediaSize && boxSize
+    usePixelMath && mediaSize && boxSize
       ? profileMediaCoverLayoutStyle(resolved, mediaSize, boxSize)
       : profileMediaFramedObjectFitStyle(resolved)
 
   useEffect(() => {
-    if (!useCoverMath) return
+    if (!usePixelMath) return
     const box = boxRef.current
     if (!box || typeof ResizeObserver === 'undefined') return
     const sync = () => {
@@ -90,10 +92,10 @@ export function AvatarMediaFramePreview({
     const observer = new ResizeObserver(sync)
     observer.observe(box)
     return () => observer.disconnect()
-  }, [featureLayout, resolved.height, useCoverMath])
+  }, [featureLayout, resolved.height, resolved.zoom, usePixelMath])
 
   const updateFromPointer = (clientX: number, clientY: number) => {
-    if (contained) return
+    if (dragLocked) return
     const start = dragRef.current
     const box = boxRef.current
     if (!start || !box) return
@@ -111,12 +113,24 @@ export function AvatarMediaFramePreview({
     )
   }
 
-  const patchFrame = (patch: Partial<ProfileMediaFrame>) => onChange(parseProfileMediaFrame({ ...resolved, ...patch }))
+  const patchFrame = (patch: Partial<ProfileMediaFrame>) => {
+    const nextZoom = patch.zoom
+    const unlocking = contained && resolved.zoom === 1 && typeof nextZoom === 'number' && nextZoom !== 1
+    onChange(
+      parseProfileMediaFrame({
+        ...resolved,
+        ...(unlocking ? { focusX: 50, focusY: 50 } : {}),
+        ...patch,
+      })
+    )
+  }
 
   const helpText = featureLayout
-    ? contained
-      ? 'Contain fills the frame from the top-left. Drag is locked. Zoom and frame height still apply.'
-      : 'Drag to reposition. Set image object type and height — the public card uses these settings.'
+    ? dragLocked
+      ? 'Contain keeps the whole image in the frame. Drag stays locked until you zoom in or out.'
+      : contained
+        ? 'Zoomed contain: drag to move the image up, down, left, or right.'
+        : 'Drag to reposition. Set image object type and height — the public card uses these settings.'
     : 'Drag the photo or video to set top, center, or bottom, and left or right. Zoom in or out — the preview uses that position.'
 
   return (
@@ -131,7 +145,7 @@ export function AvatarMediaFramePreview({
       <div
         ref={boxRef}
         className={`relative w-full touch-none overflow-hidden rounded-3xl border border-slate-200/80 bg-black select-none dark:border-white/10 ${
-          contained ? 'cursor-default' : dragging ? 'cursor-grabbing ring-2 ring-emerald-500/60' : 'cursor-grab'
+          dragLocked ? 'cursor-default' : dragging ? 'cursor-grabbing ring-2 ring-emerald-500/60' : 'cursor-grab'
         }`}
         style={
           featureLayout
@@ -139,7 +153,7 @@ export function AvatarMediaFramePreview({
             : { height: profileFramePreviewHeight(resolved) }
         }
         onPointerDown={(event) => {
-          if (contained) return
+          if (dragLocked) return
           if ((event.target as HTMLElement).closest('button')) return
           event.preventDefault()
           event.currentTarget.setPointerCapture(event.pointerId)
@@ -152,7 +166,7 @@ export function AvatarMediaFramePreview({
           setDragging(true)
         }}
         onPointerMove={(event) => {
-          if (contained || !dragRef.current) return
+          if (dragLocked || !dragRef.current) return
           updateFromPointer(event.clientX, event.clientY)
         }}
         onPointerUp={(event) => {
@@ -168,7 +182,7 @@ export function AvatarMediaFramePreview({
         }}
         role="application"
         aria-label={
-          contained
+          dragLocked
             ? 'Contained image preview'
             : featureLayout
               ? 'Drag featured media position'
@@ -209,7 +223,7 @@ export function AvatarMediaFramePreview({
             }}
           />
         )}
-        {contained ? null : (
+        {dragLocked ? null : (
           <>
             <div
               className="pointer-events-none absolute inset-y-0 border-l border-dashed border-white/70"
@@ -224,7 +238,7 @@ export function AvatarMediaFramePreview({
         <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center p-3">
           <span className="inline-flex items-center gap-1.5 rounded-full bg-black/55 px-3 py-1.5 text-[11px] font-semibold tracking-wide text-white uppercase backdrop-blur-sm">
             <Move className="h-3.5 w-3.5" />
-            {contained ? 'Drag locked' : dragging ? 'Release to set' : 'Drag to reposition'}
+            {dragLocked ? 'Drag locked' : dragging ? 'Release to set' : 'Drag to reposition'}
           </span>
         </div>
         {onRemove ? (

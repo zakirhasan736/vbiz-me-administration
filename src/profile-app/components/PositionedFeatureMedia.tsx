@@ -42,9 +42,13 @@ export function PositionedFeatureMedia({ src, alt, frame, className, video = fal
   const setMediaSize = (size: MediaPixelSize) => setMediaSizeState({ src, size })
   const resolved = frame ? parseProfileMediaFrame(frame) : null
   const useCoverMath = Boolean(resolved && (resolved.objectFit || 'cover') === 'cover')
+  const containZoomed = Boolean(
+    resolved && (resolved.objectFit === 'contain' || resolved.objectFit === 'scale-down') && resolved.zoom !== 1
+  )
+  const usePixelMath = useCoverMath || containZoomed
 
   useEffect(() => {
-    if (!resolved || !useCoverMath) return
+    if (!resolved || !usePixelMath) return
     const box = boxRef.current
     if (!box || typeof ResizeObserver === 'undefined') return
     const sync = () => {
@@ -57,7 +61,7 @@ export function PositionedFeatureMedia({ src, alt, frame, className, video = fal
     const observer = new ResizeObserver(sync)
     observer.observe(box)
     return () => observer.disconnect()
-  }, [resolved, useCoverMath])
+  }, [resolved, usePixelMath])
 
   if (!resolved) {
     if (playVideo) {
@@ -72,7 +76,7 @@ export function PositionedFeatureMedia({ src, alt, frame, className, video = fal
   // Contain / fill / none / scale-down: fill the black frame with CSS object-fit (letterbox).
   // Cover: pixel-accurate pan + zoom once media + box sizes are known.
   const fit =
-    useCoverMath && mediaSize && boxSize
+    usePixelMath && mediaSize && boxSize
       ? profileMediaCoverLayoutStyle(resolved, mediaSize, boxSize)
       : profileMediaFramedObjectFitStyle(resolved)
 

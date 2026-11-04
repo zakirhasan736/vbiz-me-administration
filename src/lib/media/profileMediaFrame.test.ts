@@ -87,15 +87,14 @@ describe('profile media frame', () => {
     expect(style.transform).toBe('none')
   })
 
-  it('contain keeps zoom from the top-left and ignores drag position', () => {
+  it('zoomed contain pans from drag so top and bottom can move', () => {
     const frame = parseProfileMediaFrame({ focusX: 20, focusY: 80, zoom: 1.4, objectFit: 'contain' })
     const style = profileMediaCoverLayoutStyle(frame, { width: 100, height: 200 }, { width: 320, height: 180 })
-    expect(style.objectFit).toBe('contain')
-    expect(style.width).toBe('100%')
-    expect(style.height).toBe('100%')
-    expect(style.objectPosition).toBe('unset')
-    expect(style.transform).toBe('scale(1.4)')
-    expect(style.transformOrigin).toBe('center')
+    expect(style.width).toBe(126)
+    expect(style.height).toBe(252)
+    expect(style.left).toBeCloseTo(134.8)
+    expect(style.top).toBeCloseTo(-111.6)
+    expect(style.objectFit).toBe('fill')
   })
 
   it('fill stretches to the frame without scale overflow', () => {
@@ -107,7 +106,7 @@ describe('profile media frame', () => {
     expect(style.transform).toBe('none')
   })
 
-  it('pins contain to the top-left and keeps zoom and frame height', () => {
+  it('keeps zoom, height, and drag position when switching to contain', () => {
     const dirty = parseProfileMediaFrame({
       focusX: 10,
       focusY: 90,
@@ -117,8 +116,8 @@ describe('profile media frame', () => {
     })
     const next = resetFrameForContainedFit('contain', dirty)
     expect(next).toEqual({
-      focusX: 0,
-      focusY: 0,
+      focusX: 10,
+      focusY: 90,
       zoom: 2,
       height: 1.4,
       objectFit: 'contain',
