@@ -20,6 +20,7 @@ import { VCardMediaField } from '@/components/vcard/VCardMediaField'
 import { VCardTemplateDesignPanel } from '@/components/VCardTemplateDesignPanel'
 import { useDashboardTour } from '@/context/DashboardTourContext'
 import { useAppSelector } from '@/hooks/redux'
+import { usePackageAccess } from '@/hooks/usePackageAccess'
 import { cardAgentJson } from '@/lib/ai/cardAgentClient'
 import {
   AI_ASSISTANCE_ADDON_PRICE_USD,
@@ -1644,8 +1645,7 @@ function AiAgentTrainModal({
 function CardAiAssistancePanel() {
   const { cardId, vCardData, updateData } = useVCard()
   const searchParams = useSearchParams()
-  const canUseAiAssistance = true
-  const entitlementsLoading = false
+  const { allow_ai_assistance: canUseAiAssistance, isLoading: entitlementsLoading } = usePackageAccess()
   const [createAiCheckout, { isLoading: checkoutBusy }] = useCreateAiAssistanceCheckoutMutation()
   const active = isAiAssistanceEnabled(vCardData.aiAssistanceEnabled, vCardData.slug)
   const [showTrain, setShowTrain] = useState(false)
