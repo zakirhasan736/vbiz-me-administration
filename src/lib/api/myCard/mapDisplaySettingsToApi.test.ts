@@ -41,21 +41,26 @@ describe('extra fields settings', () => {
   })
 })
 
-describe('mapDisplaySettingsToApiSettings YouTube clears', () => {
-  it('persists empty intro / background-music YouTube URLs so Remove does not revive them', () => {
+describe('mapDisplaySettingsToApiSettings media clears', () => {
+  it('persists empty Home Media and Media & Profile URLs so Remove does not revive them', () => {
     const display: VCardDisplaySettings = {
       globalEnabled: true,
       fields: {
         'Intro YouTube vCard Video Link': { visible: true, customValue: '' },
         'YouTube Background Music Link': { visible: true, customValue: '   ' },
         'Intro vCard Video': { visible: true, customValue: '' },
+        'Background Music': { visible: true, customValue: '' },
+        'Background Video/Image': { visible: true, customValue: '' },
+        'Profile Image/Video': { visible: true, customValue: '' },
       },
     }
     const settings = mapDisplaySettingsToApiSettings(display)
     expect(settings.intro_youtube_url).toBe('')
     expect(settings.background_music_url).toBe('')
-    // File media still omits empty clears (legacy attachments use /media/clear).
-    expect(settings.intro_video_url).toBeUndefined()
+    expect(settings.intro_video_url).toBe('')
+    expect(settings.background_music_file_url).toBe('')
+    expect(settings.background_media_url).toBe('')
+    expect(settings.profile_media_url).toBe('')
   })
 
   it('still writes non-empty YouTube URLs', () => {
