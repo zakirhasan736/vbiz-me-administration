@@ -6,6 +6,7 @@ import {
   hexToRgb,
   hslToRgb,
   hsvToHex,
+  macColorWellGrid,
   parseHexColor,
   parseRgbChannel,
   rgbToHex,
@@ -49,6 +50,13 @@ describe('color space', () => {
     expect(grid).toHaveLength(60)
     expect(grid[0]).toBe('#ffffff')
     expect(grid[9]).toBe('#000000')
+    expect(grid.every((hex) => parseHexColor(hex) === hex)).toBe(true)
+  })
+
+  it('builds the macOS color-well matrix with a bright strip and shade columns', () => {
+    const grid = macColorWellGrid()
+    expect(grid).toHaveLength(132)
+    expect(grid[0]).toBe('#ff0000')
     expect(grid.every((hex) => parseHexColor(hex) === hex)).toBe(true)
   })
 })

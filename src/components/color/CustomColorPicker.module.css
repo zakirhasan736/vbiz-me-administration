@@ -16,8 +16,7 @@
 
 .trigger:focus-visible,
 .swatch:focus-visible,
-.field:focus-visible,
-.dropper:focus-visible {
+.field:focus-visible {
   outline: 2px solid #0a84ff;
   outline-offset: 2px;
 }
@@ -40,29 +39,49 @@
 }
 
 .panel {
-  --ccp-bg: #2c2c2e;
-  --ccp-elevated: #3a3a3c;
+  --ccp-bg: #646468;
+  --ccp-elevated: #4c4c50;
   --ccp-text: #f5f5f7;
-  --ccp-muted: #aeaeb2;
-  --ccp-line: rgba(255, 255, 255, 0.14);
+  --ccp-muted: #d2d2d6;
+  --ccp-line: rgba(0, 0, 0, 0.28);
   z-index: 10060;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 12px;
-  overflow: auto;
+  gap: 8px;
+  padding: 8px;
   color: var(--ccp-text);
   background: var(--ccp-bg);
-  border: 1px solid var(--ccp-line);
-  border-radius: 12px;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 10px;
+  box-shadow:
+    0 18px 40px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  overflow: visible;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
 .floating {
   position: fixed;
+}
+
+.arrow {
+  position: absolute;
+  top: -7px;
+  width: 16px;
+  height: 8px;
+  margin-left: -8px;
+  background: var(--ccp-bg);
+  clip-path: polygon(50% 0, 0 100%, 100% 100%);
+  filter: drop-shadow(0 -1px 0 rgba(255, 255, 255, 0.18));
+}
+
+.arrowAbove {
+  top: auto;
+  bottom: -7px;
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
+  filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.2));
 }
 
 .sheet {
@@ -72,6 +91,7 @@
   left: 0;
   width: 100%;
   max-height: 92vh;
+  overflow: auto;
   border-radius: 16px 16px 0 0;
   padding-bottom: 12px;
   padding-bottom: max(12px, env(safe-area-inset-bottom));
@@ -81,44 +101,79 @@
   padding-right: max(12px, env(safe-area-inset-right));
 }
 
-.grid,
-.chips {
+.spectrum,
+.matrix {
   display: grid;
-  grid-template-columns: repeat(10, minmax(0, 1fr));
-  gap: 3px;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 1px;
   margin: 0;
   padding: 0;
 }
 
-.chips {
-  grid-template-columns: repeat(8, minmax(0, 1fr));
+.matrix {
+  margin-top: 2px;
 }
 
 .swatch {
   aspect-ratio: 1;
+  width: 100%;
   min-width: 0;
   min-height: 0;
   padding: 0;
-  border: 1px solid rgba(0, 0, 0, 0.35);
-  border-radius: 4px;
+  border: 0;
+  border-radius: 1px;
   cursor: pointer;
 }
 
 .swatchActive {
   box-shadow:
-    inset 0 0 0 2px #fff,
-    0 0 0 1px #000;
+    inset 0 0 0 1px #fff,
+    0 0 0 1px #1c1c1e;
+  z-index: 1;
+}
+
+.showColors {
+  align-self: center;
+  margin-top: 2px;
+  padding: 3px 12px 4px;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.2;
+  background: linear-gradient(#5a5a5e, #3f3f43);
+  border: 1px solid rgba(0, 0, 0, 0.45);
+  border-radius: 6px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  cursor: pointer;
+}
+
+.showColors:hover {
+  background: linear-gradient(#68686c, #4a4a4e);
+}
+
+.details {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .engine {
   width: 100%;
   touch-action: none;
+  user-select: none;
 }
 
 .engine :global(.react-colorful) {
   width: 100%;
   height: 168px;
   gap: 10px;
+}
+
+.engine :global(.react-colorful__saturation),
+.engine :global(.react-colorful__hue) {
+  overflow: hidden;
+  touch-action: none;
+  user-select: none;
 }
 
 .engine :global(.react-colorful__saturation) {
@@ -138,6 +193,7 @@
 .engine :global(.react-colorful__pointer) {
   width: 22px;
   height: 22px;
+  transition: none;
 }
 
 .readout {
@@ -149,7 +205,7 @@
 
 .controls {
   display: grid;
-  grid-template-columns: 36px minmax(0, 1fr) auto;
+  grid-template-columns: 36px minmax(0, 1fr);
   gap: 8px;
   align-items: center;
 }
@@ -192,31 +248,10 @@
   border-radius: 8px;
 }
 
-.dropper {
-  height: 36px;
-  padding: 0 8px;
-  color: var(--ccp-text);
-  font-size: 12px;
-  font-weight: 650;
-  background: var(--ccp-elevated);
-  border: 1px solid var(--ccp-line);
-  border-radius: 8px;
-  cursor: pointer;
-}
-
 .rgb {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
-}
-
-.sectionLabel {
-  margin: 2px 0 0;
-  color: var(--ccp-muted);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
 }
 
 @media (max-width: 640px) {
@@ -230,6 +265,11 @@
 }
 
 @media (pointer: coarse) {
+  .showColors {
+    min-height: 36px;
+    padding-inline: 16px;
+  }
+
   .engine :global(.react-colorful__pointer) {
     width: 28px;
     height: 28px;

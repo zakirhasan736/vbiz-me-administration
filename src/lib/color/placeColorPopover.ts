@@ -1,5 +1,5 @@
-export const COLOR_PANEL_WIDTH = 292
-export const COLOR_PANEL_HEIGHT = 468
+export const COLOR_PANEL_WIDTH = 232
+export const COLOR_PANEL_HEIGHT = 286
 export const COLOR_SHEET_BREAKPOINT = 640
 
 export type AnchorRect = {
@@ -19,6 +19,8 @@ export type PopoverBox = {
   left: number
   width: number
   maxHeight: number
+  /** Distance from the panel's left edge to the arrow tip, in px. */
+  arrow: number
 }
 
 const MARGIN = 8
@@ -42,6 +44,7 @@ export function placeColorPopover(
       left: 0,
       width: viewport.width,
       maxHeight: Math.max(220, viewport.height - MARGIN),
+      arrow: viewport.width / 2,
     }
   }
 
@@ -51,8 +54,10 @@ export function placeColorPopover(
   const maxHeight = Math.min(panel.height, Math.max(160, viewport.height - MARGIN * 2))
   let top = placement === 'below' ? anchor.bottom + GAP : anchor.top - GAP - maxHeight
   top = Math.max(MARGIN, Math.min(top, viewport.height - MARGIN - maxHeight))
-  let left = anchor.left
+  const anchorCenter = (anchor.left + anchor.right) / 2
+  let left = anchorCenter - width / 2
   if (left + width > viewport.width - MARGIN) left = viewport.width - MARGIN - width
   if (left < MARGIN) left = MARGIN
-  return { placement, top, left, width, maxHeight }
+  const arrow = Math.max(18, Math.min(width - 18, anchorCenter - left))
+  return { placement, top, left, width, maxHeight, arrow }
 }

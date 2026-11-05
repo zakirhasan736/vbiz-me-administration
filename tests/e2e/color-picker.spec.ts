@@ -2,6 +2,13 @@ import { expect, test } from '@playwright/test'
 
 const WIDTHS = [320, 360, 375, 390, 414, 768, 1024, 1280, 1440, 1920]
 
+async function openDetails(page: import('@playwright/test').Page, name = 'Primary color') {
+  await page.getByRole('button', { name }).click()
+  const panel = page.locator('[data-color-picker-panel]')
+  await panel.getByRole('button', { name: 'Show Colors...' }).click()
+  return panel
+}
+
 test.describe('custom color picker', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/dev/color-picker')
@@ -9,8 +16,7 @@ test.describe('custom color picker', () => {
 
   test('selects, edits, saves, and reloads primary without touching secondary', async ({ page }) => {
     await expect(page.locator('input[type="color"]')).toHaveCount(0)
-    await page.getByRole('button', { name: 'Primary color' }).click()
-    const panel = page.locator('[data-color-picker-panel]')
+    const panel = await openDetails(page)
     await expect(panel).toBeVisible()
     const hex = panel.getByRole('textbox', { name: 'Primary hex' })
     await hex.fill('#445566')
@@ -25,8 +31,7 @@ test.describe('custom color picker', () => {
   })
 
   test('rejects an unfinished hex and accepts an rgb channel', async ({ page }) => {
-    await page.getByRole('button', { name: 'Primary color' }).click()
-    const panel = page.locator('[data-color-picker-panel]')
+    const panel = await openDetails(page)
     await panel.getByRole('textbox', { name: 'Primary hex' }).fill('#12')
     await expect(page.getByTestId('saved-colors')).toContainText('#112233')
     await panel.getByRole('textbox', { name: 'Primary red' }).fill('10')
@@ -62,14 +67,13 @@ test.describe('custom color picker', () => {
     await expect(page.locator('[data-color-picker-panel]')).toHaveAttribute('data-placement', 'sheet')
   })
 
-  test('works when EyeDropper is unavailable', async ({ page }) => {
-    await page.addInitScript(() => {
-      delete (window as Window & { EyeDropper?: unknown }).EyeDropper
-    })
-    await page.reload()
+  test('selects a swatch without a screen picker or preset list', async ({ page }) => {
     await page.getByRole('button', { name: 'Primary color' }).click()
-    await expect(page.getByRole('button', { name: 'Pick' })).toHaveCount(0)
-    await page.locator('[data-color-picker-panel]').getByRole('option', { name: '#ff0000' }).first().click()
+    const panel = page.locator('[data-color-picker-panel]')
+    await expect(panel.getByRole('button', { name: 'Pick' })).toHaveCount(0)
+    await expect(panel.getByText('Presets')).toHaveCount(0)
+    await expect(panel.getByText('Recent')).toHaveCount(0)
+    await panel.getByRole('option', { name: '#ff0000' }).click()
     await expect(page.getByTestId('saved-colors')).toContainText('#ff0000')
   })
 })

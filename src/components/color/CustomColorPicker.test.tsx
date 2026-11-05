@@ -39,6 +39,11 @@ describe('CustomColorPicker', () => {
     act(() => trigger.click())
     expect(document.querySelector('input[type="color"]')).toBeNull()
     expect(document.querySelector('[data-color-picker-panel]')).toBeTruthy()
+    expect(document.body.textContent).toContain('Show Colors...')
+    const showColors = Array.from(document.querySelectorAll('button')).find((button) =>
+      button.textContent?.includes('Show Colors')
+    ) as HTMLButtonElement
+    act(() => showColors.click())
     const hex = document.querySelector('input[aria-label="Primary hex"]') as HTMLInputElement
     expect(hex.value.toLowerCase()).toContain('112233')
   })
@@ -54,6 +59,13 @@ describe('CustomColorPicker', () => {
     )
     mounted.push(view)
     act(() => (document.querySelector('button[aria-label="Primary color"]') as HTMLButtonElement).click())
+    act(() =>
+      (
+        Array.from(document.querySelectorAll('button')).find((button) =>
+          button.textContent?.includes('Show Colors')
+        ) as HTMLButtonElement
+      ).click()
+    )
     const hex = document.querySelector('input[aria-label="Primary hex"]') as HTMLInputElement
     act(() => {
       const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set
@@ -76,15 +88,23 @@ describe('CustomColorPicker', () => {
     })
     expect(document.querySelector('[data-color-picker-panel]')).toBeNull()
     open()
+    act(() =>
+      (
+        Array.from(document.querySelectorAll('button')).find((button) =>
+          button.textContent?.includes('Show Colors')
+        ) as HTMLButtonElement
+      ).click()
+    )
     const hex = document.querySelector('input[aria-label="Primary hex"]') as HTMLInputElement
     expect(hex.value.toLowerCase()).toContain('abcdef')
   })
 
-  it('hides the eyedropper when the API is missing', () => {
+  it('omits the eyedropper, presets, and recent colors', () => {
     const view = renderPicker(<CustomColorPicker label="Primary" defaultValue="#000000" />)
     mounted.push(view)
     act(() => (document.querySelector('button[aria-label="Primary color"]') as HTMLButtonElement).click())
-    expect(document.body.textContent).not.toContain('EyeDropper failed')
-    expect(document.querySelector('[data-color-picker-panel]')).toBeTruthy()
+    const panel = document.querySelector('[data-color-picker-panel]')
+    expect(panel).toBeTruthy()
+    expect(panel?.textContent).not.toMatch(/Pick|Presets|Recent|Done/)
   })
 })

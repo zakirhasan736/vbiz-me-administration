@@ -142,6 +142,37 @@ export function formatHsv(hsv: Hsv): string {
   return `hsv(${Math.round(hsv.h)} ${Math.round(hsv.s)}% ${Math.round(hsv.v)}%)`
 }
 
+/**
+ * macOS color-well matrix: one bright strip, then hue columns that run dark to light,
+ * with the last column in gray. Matches the system popover the card settings reference.
+ */
+export function macColorWellGrid(): string[] {
+  const spectrum = [
+    '#ff0000',
+    '#ff7a00',
+    '#ffe100',
+    '#b6f000',
+    '#3ddc00',
+    '#00e5c3',
+    '#00a6ff',
+    '#0044ff',
+    '#6a00ff',
+    '#e100e1',
+    '#8d5524',
+    '#9a9a9a',
+  ]
+  const hues = [230, 255, 280, 310, 345, 8, 24, 42, 62, 95, 145]
+  const cells = [...spectrum]
+  for (let row = 0; row < 10; row += 1) {
+    const t = row / 9
+    const v = 14 + t * 82
+    const s = row <= 1 ? 52 : row >= 8 ? 26 : 76
+    for (const hue of hues) cells.push(hsvToHex({ h: hue, s, v }))
+    cells.push(hsvToHex({ h: 0, s: 0, v: 8 + t * 88 }))
+  }
+  return cells
+}
+
 /** Classic macOS-style spectrum: one gray row, then hue columns across shade rows. */
 export function classicSwatchGrid(): string[] {
   const cells: string[] = []
