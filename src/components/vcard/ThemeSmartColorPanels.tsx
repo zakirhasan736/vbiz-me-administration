@@ -4,6 +4,7 @@ import { Button } from '@/components/ui'
 import { ColorSwatchInput, useLiveCssColor } from '@/components/vcard/HexColorControl'
 import { MediaUploadError, uploadMediaWithProgress } from '@/lib/media/uploadMediaWithProgress'
 import type {
+  AboutScreenModeColors,
   BannerModeColors,
   BannerTitleStyle,
   BannerVariant,
@@ -24,6 +25,7 @@ import {
   clearOneSectionStyleOverride,
   colorToHex,
   colorWithAlpha,
+  deriveAboutScreenMode,
   deriveBannerMode,
   deriveContentCardMode,
   deriveFaqItemMode,
@@ -765,6 +767,163 @@ export function TopNavBarStylePanel({
               ['itemActive', 'Active item / icon'],
               ['border', 'Navbar border'],
             ] as Array<[keyof TopNavBarModeColors, string]>)
+        ).map(([field, label]) => (
+          <ColorField
+            key={field}
+            label={label}
+            value={String(resolved[field] || '#000000')}
+            onChange={(v) => patch({ [field]: v })}
+          />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/** Card Settings: About tab screen colors. Defaults follow Theme Colors and Tab banner styles. */
+export function AboutScreenStylePanel({
+  themeConfig,
+  onThemeConfigChange,
+}: {
+  themeConfig: CardThemeConfig
+  onThemeConfigChange: ThemeConfigUpdater
+}) {
+  const { mode, setMode, colorSet, patch, reset } = useSectionModeEditor(
+    themeConfig,
+    onThemeConfigChange,
+    'aboutScreen'
+  )
+  const resolved = deriveAboutScreenMode(
+    colorSet,
+    mode,
+    themeConfig.components.sectionBanner?.[mode],
+    themeConfig.components.aboutScreen?.[mode]
+  )
+  const variant = resolved.variant || 'solid'
+  const titleStyle = resolved.titleStyle || 'smart'
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-[13px] text-slate-500 dark:text-slate-400">
+          About screen banner, title, label, description, feature image, and the text on that tab. Light and dark are
+          separate. Unchanged fields keep Theme Colors and Tab banner styles.
+        </p>
+        <ModeTabs mode={mode} onChange={setMode} />
+      </div>
+      <SectionResetRow onReset={reset} />
+      <div className="flex flex-wrap gap-2">
+        {(
+          [
+            ['solid', 'Solid background'],
+            ['gradient', 'Gradient background'],
+          ] as const
+        ).map(([id, label]) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => patch({ variant: id })}
+            className={cn(
+              'rounded-xl border px-3 py-2 text-[12px] font-bold',
+              variant === id
+                ? 'border-primary-500 bg-primary-50 text-primary-700 dark:bg-primary-950/40 dark:text-primary-200'
+                : 'border-slate-200 text-slate-600 dark:border-white/10 dark:text-slate-300'
+            )}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      {variant === 'image' ? (
+        <p className="text-[12px] text-slate-500 dark:text-slate-400">
+          This mode still uses the tab banner image. Choose Solid or Gradient to paint the About screen itself.
+        </p>
+      ) : null}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {(variant === 'gradient'
+          ? ([
+              ['gradientFrom', 'Gradient from', true],
+              ['gradientTo', 'Gradient to', true],
+              ['border', 'Banner border', true],
+            ] as Array<[keyof AboutScreenModeColors, string, boolean]>)
+          : ([
+              ['bg', 'Background', true],
+              ['border', 'Banner border', true],
+            ] as Array<[keyof AboutScreenModeColors, string, boolean]>)
+        ).map(([field, label, withOpacity]) => (
+          <ColorField
+            key={field}
+            label={label}
+            withOpacity={withOpacity}
+            value={String(resolved[field] || '#000000')}
+            onChange={(v) => patch({ [field]: v })}
+          />
+        ))}
+      </div>
+      <div className="rounded-xl border border-slate-200/80 p-3 dark:border-white/10">
+        <p className="mb-2 text-[11px] font-bold tracking-wide text-slate-500 uppercase dark:text-slate-400">
+          Title paint
+        </p>
+        <div className="mb-3 flex flex-wrap gap-2">
+          {(
+            [
+              ['smart', 'Smart'],
+              ['solid', 'Solid color'],
+              ['gradient', 'Title gradient'],
+            ] as Array<[BannerTitleStyle, string]>
+          ).map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => patch({ titleStyle: id })}
+              className={cn(
+                'inline-flex items-center gap-1 rounded-xl border px-3 py-2 text-[12px] font-bold',
+                titleStyle === id
+                  ? 'border-primary-500 bg-primary-50 text-primary-700 dark:bg-primary-950/40 dark:text-primary-200'
+                  : 'border-slate-200 text-slate-600 dark:border-white/10 dark:text-slate-300'
+              )}
+            >
+              {id === 'smart' ? <Sparkles className="h-3 w-3" /> : null}
+              {label}
+            </button>
+          ))}
+        </div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <ColorField label="Title" value={String(resolved.title || '#ffffff')} onChange={(v) => patch({ title: v })} />
+          {titleStyle !== 'solid' ? (
+            <>
+              <ColorField
+                label="Title gradient from"
+                withOpacity
+                value={String(resolved.titleGradientFrom || colorSet.primary)}
+                onChange={(v) => patch({ titleGradientFrom: v })}
+              />
+              <ColorField
+                label="Title gradient to"
+                withOpacity
+                value={String(resolved.titleGradientTo || colorSet.accent)}
+                onChange={(v) => patch({ titleGradientTo: v })}
+              />
+            </>
+          ) : null}
+        </div>
+      </div>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {(
+          [
+            ['label', 'Label'],
+            ['description', 'Description'],
+            ['text', 'Intro text'],
+            ['headline', 'Headline'],
+            ['highlight', 'Highlight'],
+            ['imageBorder', 'Feature image border'],
+            ['pillarBg', 'Feature card background'],
+            ['pillarTitle', 'Feature card title'],
+            ['pillarDescription', 'Feature card description'],
+            ['pillarIcon', 'Feature card icon'],
+            ['footer', 'Footer'],
+            ['tagline', 'Tagline'],
+          ] as Array<[keyof AboutScreenModeColors, string]>
         ).map(([field, label]) => (
           <ColorField
             key={field}

@@ -1,0 +1,241 @@
+.trigger {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  margin: 0;
+  padding: 0;
+  border: 1px solid rgba(15, 23, 42, 0.18);
+  border-radius: 999px;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.28);
+  cursor: pointer;
+  appearance: none;
+}
+
+.trigger:focus-visible,
+.swatch:focus-visible,
+.field:focus-visible,
+.dropper:focus-visible {
+  outline: 2px solid #0a84ff;
+  outline-offset: 2px;
+}
+
+.overlayTrigger {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  border-radius: inherit;
+  background: transparent !important;
+  box-shadow: none;
+}
+
+.barTrigger {
+  width: 100%;
+  height: 2.5rem;
+  border-radius: 12px;
+}
+
+.panel {
+  --ccp-bg: #2c2c2e;
+  --ccp-elevated: #3a3a3c;
+  --ccp-text: #f5f5f7;
+  --ccp-muted: #aeaeb2;
+  --ccp-line: rgba(255, 255, 255, 0.14);
+  z-index: 10060;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  overflow: auto;
+  color: var(--ccp-text);
+  background: var(--ccp-bg);
+  border: 1px solid var(--ccp-line);
+  border-radius: 12px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.floating {
+  position: fixed;
+}
+
+.sheet {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  max-height: 92vh;
+  border-radius: 16px 16px 0 0;
+  padding-bottom: 12px;
+  padding-bottom: max(12px, env(safe-area-inset-bottom));
+  padding-left: 12px;
+  padding-left: max(12px, env(safe-area-inset-left));
+  padding-right: 12px;
+  padding-right: max(12px, env(safe-area-inset-right));
+}
+
+.grid,
+.chips {
+  display: grid;
+  grid-template-columns: repeat(10, minmax(0, 1fr));
+  gap: 3px;
+  margin: 0;
+  padding: 0;
+}
+
+.chips {
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+}
+
+.swatch {
+  aspect-ratio: 1;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  border: 1px solid rgba(0, 0, 0, 0.35);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.swatchActive {
+  box-shadow:
+    inset 0 0 0 2px #fff,
+    0 0 0 1px #000;
+}
+
+.engine {
+  width: 100%;
+  touch-action: none;
+}
+
+.engine :global(.react-colorful) {
+  width: 100%;
+  height: 168px;
+  gap: 10px;
+}
+
+.engine :global(.react-colorful__saturation) {
+  border-radius: 8px;
+  border-bottom-width: 0;
+}
+
+.engine :global(.react-colorful__hue) {
+  height: 16px;
+  border-radius: 999px;
+}
+
+.engine :global(.react-colorful__last-control) {
+  border-radius: 999px;
+}
+
+.engine :global(.react-colorful__pointer) {
+  width: 22px;
+  height: 22px;
+}
+
+.readout {
+  margin: 0;
+  color: var(--ccp-muted);
+  font-size: 11px;
+  letter-spacing: 0.01em;
+}
+
+.controls {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.preview {
+  width: 36px;
+  height: 36px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 8px;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.35);
+}
+
+.fieldLabel {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  color: var(--ccp-muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.field {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 6px 8px;
+  color: var(--ccp-text);
+  font:
+    13px ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Consolas,
+    monospace;
+  background: var(--ccp-elevated);
+  border: 1px solid var(--ccp-line);
+  border-radius: 8px;
+}
+
+.dropper {
+  height: 36px;
+  padding: 0 8px;
+  color: var(--ccp-text);
+  font-size: 12px;
+  font-weight: 650;
+  background: var(--ccp-elevated);
+  border: 1px solid var(--ccp-line);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.rgb {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.sectionLabel {
+  margin: 2px 0 0;
+  color: var(--ccp-muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+@media (max-width: 640px) {
+  .field {
+    font-size: 16px;
+  }
+
+  .engine :global(.react-colorful) {
+    height: 148px;
+  }
+}
+
+@media (pointer: coarse) {
+  .engine :global(.react-colorful__pointer) {
+    width: 28px;
+    height: 28px;
+  }
+
+  .engine :global(.react-colorful__hue) {
+    height: 22px;
+  }
+}

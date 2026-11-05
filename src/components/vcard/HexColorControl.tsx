@@ -1,5 +1,6 @@
 'use client'
 
+import { CustomColorPicker } from '@/components/color/CustomColorPicker'
 import { canonicalCssColor, colorToHex, colorWithAlpha, readCssColor } from '@/lib/theme/sectionStyleDefaults'
 import { useEffect, useRef, useState, type ClipboardEvent } from 'react'
 
@@ -148,7 +149,7 @@ export function useLiveCssColor(value: string | undefined, onChange?: (next: str
   return { text, swatch, onTextChange, onPaste, onPicker, onBlur }
 }
 
-/** Visible color circle. The input itself is the hit target, always a valid #rrggbb. */
+/** Visible color circle. Opens the custom panel and still publishes #rrggbb. */
 export function ColorSwatchInput({
   label,
   swatch,
@@ -161,13 +162,5 @@ export function ColorSwatchInput({
   /** Cover a preview swatch (used when opacity must stay visible). */
   overlay?: boolean
 }) {
-  return (
-    <input
-      type="color"
-      aria-label={`${label} color`}
-      value={swatch}
-      onChange={(event) => onChange(event.target.value)}
-      className={overlay ? 'vbiz-color-swatch-input vbiz-color-swatch-input-overlay' : 'vbiz-color-swatch-input'}
-    />
-  )
+  return <CustomColorPicker label={label} value={swatch} onChange={onChange} trigger={overlay ? 'overlay' : 'swatch'} />
 }

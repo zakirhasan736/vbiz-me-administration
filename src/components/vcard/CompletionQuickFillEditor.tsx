@@ -1,5 +1,6 @@
 'use client'
 
+import { CustomColorPicker } from '@/components/color/CustomColorPicker'
 import { DocumentUploadArea } from '@/components/DocumentUploadArea'
 import { RichTextEditor } from '@/components/editor/RichTextEditor'
 import { MediaFileUploader } from '@/components/media/MediaFileUploader'
@@ -191,12 +192,7 @@ function ScalarControl({
   if (control === 'color') {
     return (
       <div className="flex items-center gap-3">
-        <input
-          type="color"
-          value={value || '#4f46e5'}
-          onChange={(e) => onChange(e.target.value)}
-          className="h-12 w-14 cursor-pointer rounded-xl border border-slate-200 bg-white p-1 dark:border-white/10 dark:bg-[#0b0f19]"
-        />
+        <CustomColorPicker label={label || 'Color'} value={value || '#4f46e5'} onChange={onChange} />
         <input
           type="text"
           value={value}

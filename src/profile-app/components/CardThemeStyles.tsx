@@ -135,6 +135,7 @@ export function CardThemeStyles({
       JSON.stringify(config.components.reviewCard ?? null),
       JSON.stringify(config.components.faqItem ?? null),
       JSON.stringify(config.components.topNavBar ?? null),
+      JSON.stringify(config.components.aboutScreen ?? null),
     ].join('|')
   }, [config])
 

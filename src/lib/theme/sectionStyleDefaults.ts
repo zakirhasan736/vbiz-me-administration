@@ -1,4 +1,6 @@
 import type {
+  AboutScreenModeColors,
+  AboutScreenStyleConfig,
   BannerModeColors,
   BannerStyleConfig,
   ContentCardModeColors,
@@ -298,6 +300,56 @@ function pickReadableBrand(bg: string, ...candidates: Array<string | undefined>)
   return ensureReadableText(bg, candidates.find((c) => c?.trim()) || undefined, CONTRAST_LARGE_MIN)
 }
 
+/**
+ * About tab defaults follow the resolved tab banner (Theme Colors + Tab banner overrides).
+ * A field set on the About screen stays as chosen for that light/dark mode.
+ */
+export function deriveAboutScreenMode(
+  set: ThemeColorSet,
+  mode: ThemeMode,
+  globalBanner?: BannerModeColors | null,
+  override?: AboutScreenModeColors | null
+): AboutScreenModeColors {
+  const banner = deriveBannerMode(set, mode, globalBanner)
+  const inheritedVariant = banner.variant === 'gradient' ? 'gradient' : banner.variant === 'image' ? 'image' : 'solid'
+  const base: AboutScreenModeColors = {
+    variant: inheritedVariant,
+    bg: banner.bg,
+    gradientFrom: banner.gradientFrom,
+    gradientTo: banner.gradientTo,
+    border: banner.border,
+    title: banner.title,
+    titleStyle: banner.titleStyle || 'smart',
+    titleGradientFrom: banner.titleGradientFrom,
+    titleGradientTo: banner.titleGradientTo,
+    label: banner.label,
+    description: banner.description,
+    text: banner.text,
+    headline: banner.label,
+    highlight: banner.title,
+    imageBorder: banner.border,
+    pillarBg: set.surface,
+    pillarTitle: ensureReadableText(set.surface, set.text, CONTRAST_LARGE_MIN),
+    pillarDescription: ensureReadableText(set.surface, set.textMuted, 3),
+    pillarIcon: set.accent,
+    footer: banner.title,
+    tagline: set.accent,
+  }
+  const merged = pick(base, override)
+  if (!override?.titleStyle) merged.titleStyle = banner.titleStyle || 'smart'
+  if (!override?.variant) merged.variant = inheritedVariant
+  return merged
+}
+
+export function resolveAboutScreenStyle(
+  set: ThemeColorSet,
+  mode: ThemeMode,
+  bannerConfig?: BannerStyleConfig | null,
+  config?: AboutScreenStyleConfig | null
+): AboutScreenModeColors {
+  return deriveAboutScreenMode(set, mode, bannerConfig?.[mode], config?.[mode])
+}
+
 export function resolveTopNavBarStyle(
   set: ThemeColorSet,
   mode: ThemeMode,
@@ -313,10 +365,11 @@ export function clearSectionStyleOverrides<T extends Record<string, unknown>>(co
   delete next.reviewCard
   delete next.faqItem
   delete next.topNavBar
+  delete next.aboutScreen
   return next
 }
 
-export type SectionStyleKey = 'sectionBanner' | 'contentCard' | 'reviewCard' | 'faqItem' | 'topNavBar'
+export type SectionStyleKey = 'sectionBanner' | 'contentCard' | 'reviewCard' | 'faqItem' | 'topNavBar' | 'aboutScreen'
 
 /** Merge a per-mode patch into a section style override on themeConfig. */
 export function patchSectionStyleMode(
@@ -327,6 +380,7 @@ export function patchSectionStyleMode(
       reviewCard?: ReviewCardStyleConfig
       faqItem?: FaqItemStyleConfig
       topNavBar?: TopNavBarStyleConfig
+      aboutScreen?: AboutScreenStyleConfig
       [key: string]: unknown
     }
   },

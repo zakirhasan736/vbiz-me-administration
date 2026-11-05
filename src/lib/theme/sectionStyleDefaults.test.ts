@@ -4,6 +4,7 @@ import {
   buildSoftBannerGradient,
   canonicalCssColor,
   clearOneSectionStyleOverride,
+  deriveAboutScreenMode,
   deriveBannerMode,
   deriveContentCardMode,
   deriveTopNavBarMode,
@@ -134,6 +135,7 @@ describe('sectionStyleDefaults', () => {
         reviewCard: { dark: { star: '#eab308', cardBg: '#0b1626' } },
         faqItem: { dark: { questionBg: '#0b1626', answerFg: '#a1a1aa' } },
         topNavBar: { dark: { variant: 'solid', bg: '#eed677', item: '#0f2c4d', border: '#cca43b' } },
+        aboutScreen: { dark: { variant: 'gradient', title: '#abcdef', label: '#112233' } },
       },
       appearance: stock.appearance,
     }
@@ -144,6 +146,46 @@ describe('sectionStyleDefaults', () => {
     expect(resolved.components.faqItem?.dark?.questionBg).toBe('#0b1626')
     expect(resolved.components.topNavBar?.dark?.variant).toBe('solid')
     expect(resolved.components.topNavBar?.dark?.bg).toBe('#eed677')
+    expect(resolved.components.aboutScreen?.dark?.variant).toBe('gradient')
+    expect(resolved.components.aboutScreen?.dark?.title).toBe('#abcdef')
+  })
+
+  it('about screen follows the tab banner until a field is overridden', async () => {
+    const banner = deriveBannerMode(dark, 'dark')
+    const about = deriveAboutScreenMode(dark, 'dark')
+    expect(about.variant).toBe('solid')
+    expect(about.bg).toBe(banner.bg)
+    expect(about.gradientFrom).toBe(banner.gradientFrom)
+    expect(about.title).toBe(banner.title)
+    expect(about.label).toBe(dark.accent)
+    const custom = deriveAboutScreenMode(dark, 'dark', undefined, {
+      variant: 'gradient',
+      title: '#abcdef',
+      description: '#fedcba',
+      imageBorder: '#445566',
+    })
+    expect(custom.variant).toBe('gradient')
+    expect(custom.title).toBe('#abcdef')
+    expect(custom.description).toBe('#fedcba')
+    expect(custom.imageBorder).toBe('#445566')
+    expect(custom.bg).toBe(banner.bg)
+
+    const { buildCardThemeStyleSheet } = await import('@/lib/theme/cardThemeCssVars')
+    const patched = patchSectionStyleMode(stock, 'aboutScreen', 'dark', {
+      variant: 'solid',
+      bg: '#102030',
+      title: '#aabbcc',
+      label: '#ddeeff',
+      description: '#112233',
+    }) as typeof stock
+    const css = buildCardThemeStyleSheet(patched, 'dark')
+    expect(css).toContain('--vbiz-about-bg: #102030')
+    expect(css).toContain('--vbiz-about-title: #aabbcc')
+    expect(css).toContain('--vbiz-about-bg-image: none')
+    expect(css).toContain("[data-section-id='about'] .vbiz-hero-banner")
+    expect(css).toContain('var(--vbiz-about-description')
+    const cleared = clearOneSectionStyleOverride(patched, 'aboutScreen') as typeof stock
+    expect(cleared.components.aboutScreen).toBeUndefined()
   })
 
   it('derives top navbar solid defaults from Secondary bar + readable brand icons (not page surface)', () => {

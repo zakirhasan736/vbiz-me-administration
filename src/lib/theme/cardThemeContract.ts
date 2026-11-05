@@ -191,6 +191,40 @@ export type TopNavBarStyleConfig = {
   dark?: TopNavBarModeColors
 }
 
+/** About tab screen. `image` means keep the global tab-banner image until Solid or Gradient is chosen. */
+export type AboutScreenVariant = 'solid' | 'gradient' | 'image'
+
+/** Per-mode About tab chrome. Omitted fields follow Theme Colors and Tab banner styles. */
+export type AboutScreenModeColors = {
+  variant?: AboutScreenVariant
+  bg?: string
+  gradientFrom?: string
+  gradientTo?: string
+  border?: string
+  title?: string
+  titleStyle?: BannerTitleStyle
+  titleGradientFrom?: string
+  titleGradientTo?: string
+  label?: string
+  description?: string
+  /** Intro / body copy */
+  text?: string
+  headline?: string
+  highlight?: string
+  imageBorder?: string
+  pillarBg?: string
+  pillarTitle?: string
+  pillarDescription?: string
+  pillarIcon?: string
+  footer?: string
+  tagline?: string
+}
+
+export type AboutScreenStyleConfig = {
+  light?: AboutScreenModeColors
+  dark?: AboutScreenModeColors
+}
+
 export type CardThemeConfig = {
   version: 1
   colors: GlobalThemeColors
@@ -203,6 +237,7 @@ export type CardThemeConfig = {
     reviewCard?: ReviewCardStyleConfig
     faqItem?: FaqItemStyleConfig
     topNavBar?: TopNavBarStyleConfig
+    aboutScreen?: AboutScreenStyleConfig
   }
   appearance: {
     profileTemplate: ProfileTemplateId

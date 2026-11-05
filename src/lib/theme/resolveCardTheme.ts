@@ -5,6 +5,7 @@ import {
   defaultButtonComponents,
   defaultSocialIconComponent,
   getDefaultThemeConfig,
+  type AboutScreenStyleConfig,
   type BannerStyleConfig,
   type ButtonComponents,
   type CardThemeConfig,
@@ -320,6 +321,7 @@ export function resolveCardThemeConfig(raw: unknown, template: ProfileTemplateId
       reviewCard?: ReviewCardStyleConfig
       faqItem?: FaqItemStyleConfig
       topNavBar?: TopNavBarStyleConfig
+      aboutScreen?: AboutScreenStyleConfig
     }
     appearance?: Partial<CardThemeConfig['appearance']>
   }
@@ -331,6 +333,7 @@ export function resolveCardThemeConfig(raw: unknown, template: ProfileTemplateId
   const reviewCard = mergePartialModeStyle(r.components?.reviewCard)
   const faqItem = mergePartialModeStyle(r.components?.faqItem)
   const topNavBar = mergePartialModeStyle(r.components?.topNavBar)
+  const aboutScreen = mergePartialModeStyle(r.components?.aboutScreen)
 
   const appearance = {
     ...defaults.appearance,
@@ -392,6 +395,7 @@ export function resolveCardThemeConfig(raw: unknown, template: ProfileTemplateId
       ...(reviewCard ? { reviewCard } : {}),
       ...(faqItem ? { faqItem } : {}),
       ...(topNavBar ? { topNavBar } : {}),
+      ...(aboutScreen ? { aboutScreen } : {}),
     },
     appearance: {
       profileTemplate: template,
@@ -527,6 +531,7 @@ export function applyEditorSettingsToThemeConfig(
         reviewCard: current?.components.reviewCard,
         faqItem: current?.components.faqItem,
         topNavBar: current?.components.topNavBar,
+        aboutScreen: current?.components.aboutScreen,
       },
       wallpaper: current?.wallpaper,
       appearance: mergedAppearance,

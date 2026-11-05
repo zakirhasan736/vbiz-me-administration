@@ -31,6 +31,10 @@ export default defineConfig({
       url: 'http://127.0.0.1:3101/login',
       reuseExistingServer: false,
       timeout: 120_000,
+      env: {
+        ...(process.env as Record<string, string>),
+        NEXT_PUBLIC_COLOR_PICKER_HARNESS: '1',
+      },
     },
   ],
   projects: [
@@ -49,11 +53,17 @@ export default defineConfig({
       use: { ...devices['Pixel 7'] },
     },
     {
+      name: 'firefox',
+      testMatch: '**/color-picker.spec.ts',
+      use: { ...devices['Desktop Firefox'] },
+    },
+    {
       name: 'webkit',
       testMatch: [
         '**/public-card-{visitor-flows,api-responses,push-display}.spec.ts',
         '**/iphone-safari.spec.ts',
         '**/iphone-share-video.spec.ts',
+        '**/color-picker.spec.ts',
       ],
       use: { ...devices['Desktop Safari'] },
     },

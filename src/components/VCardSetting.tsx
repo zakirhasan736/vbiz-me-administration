@@ -9,6 +9,7 @@ import { useCreateAgentUi } from '@/components/vcard/create-agent/CreateAgentUiP
 import { ColorSwatchInput, useLiveCssColor } from '@/components/vcard/HexColorControl'
 import { SlugAvailabilityField } from '@/components/vcard/SlugAvailabilityField'
 import {
+  AboutScreenStylePanel,
   BannerStylePanel,
   ContentCardStylePanel,
   FaqItemStylePanel,
@@ -100,6 +101,7 @@ import type { VCardAppearance } from '@/types/vcard'
 import type { DisplayFieldConfig, DisplayFieldModeColors, VCardDisplaySettings } from '@/types/vcardDisplaySettings'
 import { cn } from '@/utils/cn'
 import {
+  BookOpen,
   Bot,
   CheckCircle2,
   CircleHelp,
@@ -140,6 +142,7 @@ const settingTabs = [
   { id: 'integration', label: 'Integration', icon: Plug },
   { id: 'template', label: 'Template Settings', icon: LayoutTemplate },
   { id: 'content-cards', label: 'Content Cards', icon: Layers },
+  { id: 'about-style', label: 'About Tabs', icon: BookOpen },
   { id: 'reviews-style', label: 'Reviews', icon: MessageSquareQuote },
   { id: 'faq-style', label: 'FAQ', icon: CircleHelp },
   { id: 'my-info-buttons', label: 'My Info Buttons', icon: Phone },
@@ -153,6 +156,7 @@ const cardInputClasses =
 const TABS_WITHOUT_ENABLE_ALL = new Set([
   'template',
   'content-cards',
+  'about-style',
   'reviews-style',
   'faq-style',
   'seo',
@@ -2121,6 +2125,13 @@ export function TabSetting({ basePath, settingsTab = 'general', cardId }: TabSet
             onThemeConfigChange={(next) => updateData('themeConfig', next)}
           />
         )
+      case 'about-style':
+        return (
+          <AboutScreenStylePanel
+            themeConfig={resolvedThemeConfig}
+            onThemeConfigChange={(next) => updateData('themeConfig', next)}
+          />
+        )
       case 'reviews-style':
         return (
           <ReviewCardStylePanel
@@ -2200,13 +2211,15 @@ export function TabSetting({ basePath, settingsTab = 'general', cardId }: TabSet
             ? 'Choose the public card layout. Tab order and visibility are set from Add Tabs.'
             : activeTab === 'content-cards'
               ? 'Style shared content cards (services, blogs, and similar sections).'
-              : activeTab === 'reviews-style'
-                ? 'Style review cards, stars, and user chrome for light and dark mode.'
-                : activeTab === 'faq-style'
-                  ? 'Style FAQ question and answer surfaces for light and dark mode.'
-                  : activeTab === 'my-info-buttons'
-                    ? 'Style the public My Info Call, Text, and Email buttons. Defaults match Template Theme Colors (Secondary, or Primary when Button type is Primary) until you override a color.'
-                    : 'Configure how elements are displayed on your vCard. Changes take effect automatically.'
+              : activeTab === 'about-style'
+                ? 'Style the About tab screen. Colors follow Theme Colors and Tab banner styles until you change a field. Light and dark are saved separately.'
+                : activeTab === 'reviews-style'
+                  ? 'Style review cards, stars, and user chrome for light and dark mode.'
+                  : activeTab === 'faq-style'
+                    ? 'Style FAQ question and answer surfaces for light and dark mode.'
+                    : activeTab === 'my-info-buttons'
+                      ? 'Style the public My Info Call, Text, and Email buttons. Defaults match Template Theme Colors (Secondary, or Primary when Button type is Primary) until you override a color.'
+                      : 'Configure how elements are displayed on your vCard. Changes take effect automatically.'
 
   const showEnableAll = !TABS_WITHOUT_ENABLE_ALL.has(activeTab)
 
@@ -2391,7 +2404,10 @@ export function TabSetting({ basePath, settingsTab = 'general', cardId }: TabSet
                   'animate-in fade-in slide-in-from-bottom-8 fill-mode-both duration-700',
                   activeTab === 'template' || activeTab === 'integration' || activeTab === 'ai-assistance'
                     ? ''
-                    : activeTab === 'content-cards' || activeTab === 'reviews-style' || activeTab === 'faq-style'
+                    : activeTab === 'content-cards' ||
+                        activeTab === 'about-style' ||
+                        activeTab === 'reviews-style' ||
+                        activeTab === 'faq-style'
                       ? 'mx-auto flex w-full max-w-4xl flex-col gap-4'
                       : FIELD_CARD_TABS.has(activeTab)
                         ? 'mx-auto grid w-full max-w-6xl grid-cols-1 gap-4 md:grid-cols-2'

@@ -12,6 +12,7 @@ import {
 import { ensureContrastPair } from '@/lib/theme/resolveCardTheme'
 import {
   buildSoftBannerGradient,
+  resolveAboutScreenStyle,
   resolveBannerStyle,
   resolveContentCardStyle,
   resolveFaqItemStyle,
@@ -258,6 +259,34 @@ export function cardThemeCssVars(config: CardThemeConfig, mode: ThemeMode): CSSP
         ? `linear-gradient(180deg, rgba(2,6,23,0.45), rgba(2,6,23,0.72)), ${vars['--vbiz-banner-image']}`
         : buildSoftBannerGradient(bannerFrom, bannerTo)
 
+  const about = resolveAboutScreenStyle(set, mode, config.components.sectionBanner, config.components.aboutScreen)
+  const aboutVariant = about.variant || 'solid'
+  vars['--vbiz-about-variant'] = aboutVariant
+  vars['--vbiz-about-bg'] = about.bg || vars['--vbiz-banner-bg']
+  vars['--vbiz-about-bg-image'] =
+    aboutVariant === 'image'
+      ? vars['--vbiz-banner-bg-image']
+      : aboutVariant === 'solid'
+        ? 'none'
+        : buildSoftBannerGradient(about.gradientFrom || bannerFrom, about.gradientTo || bannerTo)
+  vars['--vbiz-about-border'] = about.border || vars['--vbiz-banner-border']
+  vars['--vbiz-about-title'] = about.title || vars['--vbiz-banner-title']
+  vars['--vbiz-about-title-style'] = about.titleStyle || 'smart'
+  vars['--vbiz-about-title-from'] = about.titleGradientFrom || vars['--vbiz-banner-title-gradient-from']
+  vars['--vbiz-about-title-to'] = about.titleGradientTo || vars['--vbiz-banner-title-gradient-to']
+  vars['--vbiz-about-label'] = about.label || vars['--vbiz-banner-label']
+  vars['--vbiz-about-description'] = about.description || vars['--vbiz-banner-description']
+  vars['--vbiz-about-text'] = about.text || vars['--vbiz-banner-text']
+  vars['--vbiz-about-headline'] = about.headline || vars['--vbiz-about-label']
+  vars['--vbiz-about-highlight'] = about.highlight || vars['--vbiz-about-title']
+  vars['--vbiz-about-image-border'] = about.imageBorder || vars['--vbiz-about-border']
+  vars['--vbiz-about-pillar-bg'] = about.pillarBg || set.surface
+  vars['--vbiz-about-pillar-title'] = about.pillarTitle || set.text
+  vars['--vbiz-about-pillar-desc'] = about.pillarDescription || set.textMuted
+  vars['--vbiz-about-pillar-icon'] = about.pillarIcon || set.accent
+  vars['--vbiz-about-footer'] = about.footer || vars['--vbiz-about-title']
+  vars['--vbiz-about-tagline'] = about.tagline || set.accent
+
   // Home identity defaults (overridden by displayGeneralRootStyle when Card Settings set colors).
   vars['--vbiz-home-heading'] = mode === 'light' ? set.secondary : '#ffffff'
   vars['--vbiz-home-description'] = set.primary
@@ -273,6 +302,42 @@ function cssDeclarations(vars: Record<string, string>): string {
   return Object.entries(vars)
     .map(([key, value]) => `  ${key}: ${value};`)
     .join('\n')
+}
+
+function aboutTitlePaintCss(scope: string, style: string): string {
+  const root = `${scope} [data-section-id='about'] .vbiz-hero-banner`
+  if (style === 'gradient') {
+    return `${root} .vbiz-hero-title,
+${root} .vbiz-hero-title .from-gold {
+  background-image: linear-gradient(90deg, var(--vbiz-about-title-from), var(--vbiz-about-title-to)) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
+}`
+  }
+  if (style === 'solid') {
+    return `${root} .vbiz-hero-title,
+${root} .vbiz-hero-title .from-gold {
+  background-image: none !important;
+  -webkit-background-clip: border-box !important;
+  background-clip: border-box !important;
+  color: var(--vbiz-about-title) !important;
+  -webkit-text-fill-color: var(--vbiz-about-title) !important;
+}`
+  }
+  return `${root} .vbiz-hero-title {
+  background-image: none !important;
+  color: var(--vbiz-about-title) !important;
+  -webkit-text-fill-color: var(--vbiz-about-title) !important;
+}
+${root} .vbiz-hero-title .from-gold {
+  background-image: linear-gradient(90deg, var(--vbiz-about-title-from), var(--vbiz-about-title-to)) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
+}`
 }
 
 export function buildCardThemeStyleSheet(config: CardThemeConfig, mode: ThemeMode): string {
@@ -315,11 +380,19 @@ export function buildCardThemeStyleSheet(config: CardThemeConfig, mode: ThemeMod
     'html.dark .vbiz-loading-screen:not(.vbiz-theme-light)',
   ].join(',\n')
 
+  const aboutTitleCss = [
+    aboutTitlePaintCss('.vbiz-profile-root', active['--vbiz-about-title-style'] || 'smart'),
+    aboutTitlePaintCss('.vbiz-profile-root.vbiz-theme-light', light['--vbiz-about-title-style'] || 'smart'),
+    aboutTitlePaintCss('.vbiz-profile-root.vbiz-theme-dark', dark['--vbiz-about-title-style'] || 'smart'),
+    aboutTitlePaintCss('.vbiz-profile-root.dark', dark['--vbiz-about-title-style'] || 'smart'),
+  ].join('\n')
+
   return [
     `${baseScopes} {\n${cssDeclarations(active)}\n}`,
     `${lightScopes} {\n${cssDeclarations(light)}\n}`,
     `${darkScopes} {\n${cssDeclarations(dark)}\n}`,
     CARD_THEME_UTILITY_CSS,
+    aboutTitleCss,
   ].join('\n\n')
 }
 
@@ -2053,5 +2126,81 @@ ${themeUi('.vbiz-icon-btn:hover')} {
 .vbiz-profile-root.vbiz-theme-dark .vbiz-review-card .vbiz-review-body.vcard-rich-html :where(*:not(a):not(code):not(pre):not(strong):not(b):not(mark):not([style*='color'])),
 .vbiz-profile-root.dark .vbiz-review-card .vbiz-review-body.vcard-rich-html :where(*:not(a):not(code):not(pre):not(strong):not(b):not(mark):not([style*='color'])) {
   color: inherit !important;
+}
+
+/* About tab screen. Values follow Theme Colors + Tab banner until About Tabs overrides a field. */
+.vbiz-profile-root [data-section-id='about'] .vbiz-hero-banner {
+  background-color: var(--vbiz-about-bg, var(--vbiz-banner-bg)) !important;
+  background-image: var(--vbiz-about-bg-image, var(--vbiz-banner-bg-image, none)) !important;
+  border-color: var(--vbiz-about-border, var(--vbiz-banner-border)) !important;
+}
+.vbiz-profile-root [data-section-id='about'] .vbiz-hero-banner .vbiz-hero-eyebrow,
+.vbiz-profile-root [data-section-id='about'] .vbiz-hero-banner .vbiz-hero-eyebrow svg {
+  color: var(--vbiz-about-label, var(--vbiz-banner-label, var(--vbiz-accent))) !important;
+}
+.vbiz-profile-root [data-section-id='about'] .vbiz-hero-banner .vbiz-about-quote {
+  color: color-mix(in srgb, var(--vbiz-about-label, var(--vbiz-accent)) 18%, transparent) !important;
+}
+.vbiz-profile-root [data-section-id='about'] .vbiz-hero-banner .vbiz-hero-eyebrow {
+  border-color: color-mix(in srgb, var(--vbiz-about-label, var(--vbiz-accent)) 45%, transparent) !important;
+}
+.vbiz-profile-root [data-section-id='about'] .vbiz-hero-banner .vbiz-hero-subtitle,
+.vbiz-profile-root [data-section-id='about'] .vbiz-hero-banner .text-zinc-300,
+.vbiz-profile-root [data-section-id='about'] .vbiz-hero-banner .text-zinc-400 {
+  color: var(--vbiz-about-description, var(--vbiz-banner-description)) !important;
+}
+.vbiz-profile-root [data-section-id='about'] .vbiz-hero-banner .vbiz-about-prose,
+.vbiz-profile-root [data-section-id='about'] .vbiz-hero-banner .vbiz-about-prose :where(p, li, span, em) {
+  color: var(--vbiz-about-text, var(--vbiz-banner-text)) !important;
+}
+.vbiz-profile-root [data-section-id='about'] .vbiz-hero-banner .vbiz-about-prose :where(h1, h2, h3, strong, b) {
+  color: var(--vbiz-about-title, var(--vbiz-banner-title)) !important;
+}
+.vbiz-profile-root [data-section-id='about'] .vbiz-hero-banner .vbiz-about-prose a {
+  color: var(--vbiz-about-label, var(--vbiz-accent)) !important;
+}
+.vbiz-profile-root [data-section-id='about'] .vbiz-hero-banner .vbiz-about-headline {
+  color: var(--vbiz-about-headline, var(--vbiz-about-label)) !important;
+}
+.vbiz-profile-root [data-section-id='about'] .vbiz-hero-banner .vbiz-about-highlight,
+.vbiz-profile-root [data-section-id='about'] .vbiz-hero-banner .vbiz-about-highlight .vbiz-hero-heading,
+.vbiz-profile-root [data-section-id='about'] .vbiz-hero-banner .vbiz-about-highlight .vcard-rich-html,
+.vbiz-profile-root [data-section-id='about'] .vbiz-hero-banner .vbiz-about-highlight .vcard-rich-html :where(p, span, strong) {
+  color: var(--vbiz-about-highlight, var(--vbiz-about-title)) !important;
+}
+.vbiz-profile-root [data-section-id='about'] .vbiz-about-feature {
+  border-color: var(--vbiz-about-image-border, var(--vbiz-about-border)) !important;
+}
+.vbiz-profile-root [data-section-id='about'] .vbiz-hero-banner .vbiz-hero-card {
+  background-color: var(--vbiz-about-pillar-bg, var(--vbiz-surface)) !important;
+  border-color: var(--vbiz-about-border, var(--vbiz-border)) !important;
+}
+.vbiz-profile-root [data-section-id='about'] .vbiz-hero-banner .vbiz-hero-card h4,
+.vbiz-profile-root [data-section-id='about'] .vbiz-hero-banner .vbiz-hero-card .text-zinc-900 {
+  color: var(--vbiz-about-pillar-title, var(--vbiz-text)) !important;
+}
+.vbiz-profile-root [data-section-id='about'] .vbiz-hero-banner .vbiz-hero-card p,
+.vbiz-profile-root [data-section-id='about'] .vbiz-hero-banner .vbiz-hero-card .text-zinc-500 {
+  color: var(--vbiz-about-pillar-desc, var(--vbiz-text-muted)) !important;
+}
+.vbiz-profile-root [data-section-id='about'] .vbiz-about-pillar-icon {
+  color: var(--vbiz-about-pillar-icon, var(--vbiz-accent)) !important;
+  background-color: color-mix(in srgb, var(--vbiz-about-pillar-icon, var(--vbiz-accent)) 16%, transparent) !important;
+}
+.vbiz-profile-root [data-section-id='about'] .vbiz-about-pillar-icon svg {
+  color: var(--vbiz-about-pillar-icon, var(--vbiz-accent)) !important;
+}
+.vbiz-profile-root [data-section-id='about'] .vbiz-hero-banner .vbiz-about-footer {
+  color: var(--vbiz-about-footer, var(--vbiz-about-title)) !important;
+}
+.vbiz-profile-root [data-section-id='about'] .vbiz-hero-banner .vbiz-about-footer-sub {
+  color: var(--vbiz-about-description, var(--vbiz-banner-description)) !important;
+}
+.vbiz-profile-root [data-section-id='about'] .vbiz-hero-banner .vbiz-about-tagline {
+  color: var(--vbiz-about-tagline, var(--vbiz-accent)) !important;
+}
+.vbiz-profile-root [data-section-id='about'] .vbiz-hero-banner .vbiz-about-mark {
+  color: var(--vbiz-about-title, #ffffff) !important;
+  border-color: color-mix(in srgb, var(--vbiz-about-label, var(--vbiz-accent)) 45%, transparent) !important;
 }
 `.trim()

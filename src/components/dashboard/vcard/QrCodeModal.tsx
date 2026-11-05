@@ -1,5 +1,6 @@
 'use client'
 
+import { CustomColorPicker } from '@/components/color/CustomColorPicker'
 import { isVideoAvatarSrc } from '@/lib/push/resolveNotificationAvatar'
 import { generateShareQrDataUrl } from '@/profile-app/lib/shareQrCode'
 import { cn } from '@/utils/cn'
@@ -288,12 +289,7 @@ export function QrCodeModal({
                   QR color
                 </span>
                 <span className="flex items-center gap-2">
-                  <input
-                    type="color"
-                    value={fg}
-                    onChange={(e) => setFg(e.target.value)}
-                    className="h-8 w-8 cursor-pointer rounded-lg border-0 bg-transparent p-0"
-                  />
+                  <CustomColorPicker label="QR color" value={fg} onChange={setFg} />
                   <span className="truncate font-mono text-[11px] font-bold text-slate-600 uppercase dark:text-slate-300">
                     {fg}
                   </span>
@@ -304,12 +300,7 @@ export function QrCodeModal({
                   Background
                 </span>
                 <span className="flex items-center gap-2">
-                  <input
-                    type="color"
-                    value={bg}
-                    onChange={(e) => setBg(e.target.value)}
-                    className="h-8 w-8 cursor-pointer rounded-lg border-0 bg-transparent p-0"
-                  />
+                  <CustomColorPicker label="Background" value={bg} onChange={setBg} />
                   <span className="truncate font-mono text-[11px] font-bold text-slate-600 uppercase dark:text-slate-300">
                     {bg}
                   </span>
