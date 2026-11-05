@@ -18,6 +18,8 @@ type CorporateDashboardHeaderProps = {
   profilesLoading?: boolean
   canCreate: boolean
   createDisabledReason: string
+  /** After the owner card exists, this opens the team-member duplicate flow. */
+  onAddMember?: () => void
   onExportCsv: () => void
   onFeedback: () => void
   onSupport: () => void
@@ -37,6 +39,7 @@ export function CorporateDashboardHeader({
   profilesLoading = false,
   canCreate,
   createDisabledReason,
+  onAddMember,
   onExportCsv,
   onFeedback,
   onSupport,
@@ -142,17 +145,27 @@ export function CorporateDashboardHeader({
           <HeaderButton icon={MessageCircle} label="Feedback" onClick={onFeedback} iconClass="text-emerald-500" />
           <HeaderButton icon={AlertCircle} label="Contact Support" onClick={onSupport} iconClass="text-indigo-400" />
           {canCreate ? (
-            <CreateCardLauncher>
-              {(open) => (
-                <button
-                  type="button"
-                  onClick={open}
-                  className="flex items-center gap-2 rounded-xl bg-white px-5 py-2.5 text-xs font-bold text-slate-900 shadow-sm transition-all hover:bg-slate-50 active:scale-95"
-                >
-                  <Plus className="h-4 w-4" /> Create Corporate Card
-                </button>
-              )}
-            </CreateCardLauncher>
+            onAddMember ? (
+              <button
+                type="button"
+                onClick={onAddMember}
+                className="flex items-center gap-2 rounded-xl bg-white px-5 py-2.5 text-xs font-bold text-slate-900 shadow-sm transition-all hover:bg-slate-50 active:scale-95"
+              >
+                <Plus className="h-4 w-4" /> Create Corporate Card
+              </button>
+            ) : (
+              <CreateCardLauncher>
+                {(open) => (
+                  <button
+                    type="button"
+                    onClick={open}
+                    className="flex items-center gap-2 rounded-xl bg-white px-5 py-2.5 text-xs font-bold text-slate-900 shadow-sm transition-all hover:bg-slate-50 active:scale-95"
+                  >
+                    <Plus className="h-4 w-4" /> Create Corporate Card
+                  </button>
+                )}
+              </CreateCardLauncher>
+            )
           ) : (
             <button
               type="button"

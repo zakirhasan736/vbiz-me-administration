@@ -20,6 +20,7 @@ import { useVCardContactActions } from '@/hooks/useVCardContactActions'
 import { ACCOUNT_PAUSED_CREATE_MESSAGE } from '@/lib/accountStatus'
 import { clearLocalCardNotice, noticeForCard, noticeTypeFromTeamNotice, writeLocalCardNotice } from '@/lib/cardNotice'
 import { isOwnerCardLocked, SUSPENDED_CARD_MESSAGE } from '@/lib/cardStatus'
+import { isCorporateGroupMemberCard } from '@/lib/corporateCardDuplicate'
 import { notify } from '@/lib/toast/toast'
 import {
   mapApiProfileToVCardRecord,
@@ -81,13 +82,17 @@ const DashboardVCardsView = () => {
   const activeCount = useMemo(() => cards.filter((c) => !c.isDraft).length, [cards])
   const draftCount = useMemo(() => cards.filter((c) => c.isDraft).length, [cards])
 
-  const capacityAllowsCreate = capacity ? capacity.canCreate : !isPersonal || cards.length < 1
+  const memberLocked = Boolean(capacity?.memberLocked) || cards.some((card) => isCorporateGroupMemberCard(card))
+  const memberCreateReason = 'Corporate team members can have only the card assigned by the company owner.'
+  const capacityAllowsCreate = memberLocked ? false : capacity ? capacity.canCreate : !isPersonal || cards.length < 1
   const canCreate = capacityAllowsCreate && canMutateVcards
   const createDisabledReason = !canMutateVcards
     ? ACCOUNT_PAUSED_CREATE_MESSAGE
-    : isPersonal && !capacityAllowsCreate
-      ? 'Single card owners can create only one vCard'
-      : undefined
+    : memberLocked
+      ? memberCreateReason
+      : isPersonal && !capacityAllowsCreate
+        ? 'Single card owners can create only one vCard'
+        : undefined
 
   const filtered = useMemo(() => {
     let list = filterVCardsByQuery(cards, query)
@@ -205,7 +210,8 @@ const DashboardVCardsView = () => {
             noticeVersion={noticeVersion}
             teamNotices={teamNotices}
             canCreate={canCreate && lifecycleTab === 'active'}
-            showLimitPlaceholder={isPersonal && !canCreate && cards.length > 0}
+            showLimitPlaceholder={(isPersonal || memberLocked) && !canCreate && cards.length > 0}
+            limitReachedMessage={createDisabledReason}
             isPersonal={isPersonal}
             onTrends={setTrendsCard}
             contactHandlersForCard={contactHandlersForCard}
@@ -230,13 +236,11 @@ const DashboardVCardsView = () => {
         onSchedule={openScheduleForCard}
         onNotice={openNotice}
         onDuplicate={() => {
-          setAlertMessage(
-            canCreate ? 'Duplicate is not available yet.' : 'Single card owners can create only one vCard'
-          )
+          setAlertMessage(createDisabledReason || 'Single card owners can create only one vCard')
         }}
         onToggleStatus={handleToggleStatus}
         canDuplicate={canCreate}
-        duplicateDisabledReason="Single card owners can create only one vCard"
+        duplicateDisabledReason={createDisabledReason || 'Single card owners can create only one vCard'}
       />
 
       <VCardTrendsPopup card={trendsCard} onClose={() => setTrendsCard(null)} />

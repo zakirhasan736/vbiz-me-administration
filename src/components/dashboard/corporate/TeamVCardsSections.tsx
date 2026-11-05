@@ -9,9 +9,11 @@ import type { CorporateSortOption } from './useCorporateDirectory'
 type TeamVCardsHeaderProps = {
   canCreate: boolean
   createDisabledReason: string
+  /** After the owner card exists, Create New Card opens the same member login flow as Duplicate. */
+  onAddMember?: () => void
 }
 
-export function TeamVCardsHeader({ canCreate, createDisabledReason }: TeamVCardsHeaderProps) {
+export function TeamVCardsHeader({ canCreate, createDisabledReason, onAddMember }: TeamVCardsHeaderProps) {
   return (
     <div className="relative overflow-hidden rounded-[32px] border border-slate-200/80 bg-white p-8 shadow-sm dark:border-white/10 dark:bg-[#0b0f19]">
       <div className="bg-primary-600/5 pointer-events-none absolute top-0 right-0 h-80 w-80 blur-[120px]" />
@@ -29,17 +31,27 @@ export function TeamVCardsHeader({ canCreate, createDisabledReason }: TeamVCards
         </div>
         <div className="z-10 flex flex-col items-stretch gap-2 sm:items-end">
           {canCreate ? (
-            <CreateCardLauncher>
-              {(open) => (
-                <button
-                  type="button"
-                  onClick={open}
-                  className="flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-6 py-3.5 text-xs font-black tracking-wider text-white uppercase shadow-sm transition-all hover:shadow-md active:scale-95 dark:bg-white dark:text-slate-900"
-                >
-                  <Plus className="h-4.5 w-4.5" /> Create New Card
-                </button>
-              )}
-            </CreateCardLauncher>
+            onAddMember ? (
+              <button
+                type="button"
+                onClick={onAddMember}
+                className="flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-6 py-3.5 text-xs font-black tracking-wider text-white uppercase shadow-sm transition-all hover:shadow-md active:scale-95 dark:bg-white dark:text-slate-900"
+              >
+                <Plus className="h-4.5 w-4.5" /> Create New Card
+              </button>
+            ) : (
+              <CreateCardLauncher>
+                {(open) => (
+                  <button
+                    type="button"
+                    onClick={open}
+                    className="flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-6 py-3.5 text-xs font-black tracking-wider text-white uppercase shadow-sm transition-all hover:shadow-md active:scale-95 dark:bg-white dark:text-slate-900"
+                  >
+                    <Plus className="h-4.5 w-4.5" /> Create New Card
+                  </button>
+                )}
+              </CreateCardLauncher>
+            )
           ) : (
             <>
               <button
@@ -224,12 +236,30 @@ export function TeamVCardsQuotaTracker({
 export function TeamVCardsCreatePlaceholder({
   canCreate,
   quotaLimit,
-  onCreate,
+  onAddMember,
 }: {
   canCreate: boolean
   quotaLimit: number | null
-  onCreate: () => void
+  onAddMember?: () => void
 }) {
+  if (canCreate && onAddMember) {
+    return (
+      <button
+        type="button"
+        onClick={onAddMember}
+        className="group hover:border-primary-500/30 flex min-h-[350px] cursor-pointer flex-col items-center justify-center rounded-[28px] border-2 border-dashed border-slate-200 bg-slate-50 p-6 text-center transition-all hover:bg-slate-100 dark:border-white/10 dark:bg-[#070a13] dark:hover:bg-white/[0.02]"
+      >
+        <div className="group-hover:bg-primary-500 mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-400 shadow-sm transition-all group-hover:scale-110 group-hover:text-white dark:border-white/10 dark:bg-[#0b0f19]">
+          <Plus className="h-6 w-6" strokeWidth={2.5} />
+        </div>
+        <h3 className="text-[15px] font-bold text-slate-900 dark:text-white">Create New Card</h3>
+        <p className="mt-1 max-w-[200px] text-[12px] leading-relaxed font-medium text-slate-500 dark:text-slate-400">
+          Add a team member card with its own login, using the owner card as the starting point.
+        </p>
+      </button>
+    )
+  }
+
   if (canCreate) {
     return (
       <CreateCardLauncher>

@@ -44,7 +44,11 @@ import {
 import { applyCardOrder, CORPORATE_CARD_ORDER_KEY, loadCardOrder, reorderByIndex, saveCardOrder } from '@/lib/cardOrder'
 import { isOwnerCardLocked, SUSPENDED_CARD_MESSAGE } from '@/lib/cardStatus'
 import { corporateCardCreateBlockedReason } from '@/lib/corporateCardCapacity'
-import { CORPORATE_MEMBER_DUPLICATE_REASON, isCorporateGroupMemberCard } from '@/lib/corporateCardDuplicate'
+import {
+  CORPORATE_MEMBER_DUPLICATE_REASON,
+  findCorporateOwnerSourceCard,
+  isCorporateGroupMemberCard,
+} from '@/lib/corporateCardDuplicate'
 import { exportCorporateCardsCsv } from '@/lib/corporateExport'
 import { resolveDashboardContactSaves } from '@/lib/dashboardContactSaves'
 import { notify } from '@/lib/toast/toast'
@@ -143,6 +147,7 @@ export default function CorporateOwnerDashboardHome() {
     () => (profilesResult?.items ?? []).map(mapApiProfileToVCardRecord),
     [profilesResult?.items]
   )
+  const ownerSourceCard = useMemo(() => findCorporateOwnerSourceCard(liveCards), [liveCards])
   const capacity = profilesResult?.capacity
   const { canMutateVcards } = useAccountStatus()
   const profilesReady = Boolean(profilesResult) && !profilesLoading
@@ -436,6 +441,7 @@ export default function CorporateOwnerDashboardHome() {
         profilesLoading={!profilesReady}
         canCreate={headerCanCreate}
         createDisabledReason={headerCreateDisabledReason}
+        onAddMember={ownerSourceCard ? () => handleDuplicate(ownerSourceCard) : undefined}
         onExportCsv={handleExportCsv}
         onFeedback={() => setOwnerFeedbackMode('feedback')}
         onSupport={() => setOwnerFeedbackMode('support')}

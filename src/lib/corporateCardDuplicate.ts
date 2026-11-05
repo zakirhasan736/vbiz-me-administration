@@ -20,6 +20,13 @@ export function isCorporateGroupMemberCard(card: {
   return Boolean(companyUserId && userId && companyUserId !== userId)
 }
 
+/** The corporate owner's own card, used as the source when adding another team member. */
+export function findCorporateOwnerSourceCard<T extends Parameters<typeof isCorporateGroupMemberCard>[0]>(
+  cards: T[]
+): T | null {
+  return cards.find((card) => !isCorporateGroupMemberCard(card)) ?? null
+}
+
 /** Card builder: owner-content locks and "Only show my" controls exist only on corporate team member cards. */
 export function isCorporateMemberEditorCard(data: unknown): boolean {
   const card = (data || {}) as {

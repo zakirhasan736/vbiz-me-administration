@@ -13,6 +13,7 @@ type VCardsGridProps = {
   teamNotices?: TeamNotice[]
   canCreate?: boolean
   showLimitPlaceholder?: boolean
+  limitReachedMessage?: string
   isPersonal?: boolean
   onTrends?: (card: VCardRecord) => void
   contactHandlersForCard?: (card: VCardRecord) => {
@@ -31,6 +32,7 @@ export function VCardsGrid({
   teamNotices = [],
   canCreate = true,
   showLimitPlaceholder = false,
+  limitReachedMessage,
   isPersonal = false,
   onTrends,
   contactHandlersForCard,
@@ -51,7 +53,9 @@ export function VCardsGrid({
         cardNoticeText={serverNotice?.text ?? null}
         cardNoticeType={serverNotice ? noticeTypeFromTeamNotice(serverNotice) : null}
         canDuplicate={canCreate}
-        duplicateDisabledReason={isPersonal ? 'Single card owners can create only one vCard' : 'Card limit reached'}
+        duplicateDisabledReason={
+          limitReachedMessage || (isPersonal ? 'Single card owners can create only one vCard' : 'Card limit reached')
+        }
         onTrends={onTrends ? () => onTrends(card) : undefined}
         onEmail={contact?.onEmail}
         onCall={contact?.onCall}
@@ -64,7 +68,9 @@ export function VCardsGrid({
     <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       {canCreate ? <CreateVCardCard canCreate /> : null}
       {cardNodes}
-      {!canCreate && showLimitPlaceholder ? <CreateVCardCard canCreate={false} /> : null}
+      {!canCreate && showLimitPlaceholder ? (
+        <CreateVCardCard canCreate={false} limitReachedMessage={limitReachedMessage} />
+      ) : null}
     </div>
   )
 }

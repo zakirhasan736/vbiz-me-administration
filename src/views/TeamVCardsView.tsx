@@ -32,7 +32,11 @@ import {
   writeLocalCardNotice,
 } from '@/lib/cardNotice'
 import { isOwnerCardLocked, SUSPENDED_CARD_MESSAGE } from '@/lib/cardStatus'
-import { CORPORATE_MEMBER_DUPLICATE_REASON, isCorporateGroupMemberCard } from '@/lib/corporateCardDuplicate'
+import {
+  CORPORATE_MEMBER_DUPLICATE_REASON,
+  findCorporateOwnerSourceCard,
+  isCorporateGroupMemberCard,
+} from '@/lib/corporateCardDuplicate'
 import { notify } from '@/lib/toast/toast'
 import {
   useCreateTeamNoticeMutation,
@@ -127,6 +131,8 @@ export default function TeamVCardsView() {
     }
   }
 
+  const ownerSourceCard = useMemo(() => findCorporateOwnerSourceCard(directory.cards), [directory.cards])
+
   const handleDuplicate = (card: VCardRecord) => {
     if (!directory.canCreate) {
       notify.warning(directory.createDisabledReason)
@@ -196,7 +202,11 @@ export default function TeamVCardsView() {
 
   return (
     <div className="animate-in fade-in mx-auto max-w-7xl space-y-8 duration-500">
-      <TeamVCardsHeader canCreate={directory.canCreate} createDisabledReason={directory.createDisabledReason} />
+      <TeamVCardsHeader
+        canCreate={directory.canCreate}
+        createDisabledReason={directory.createDisabledReason}
+        onAddMember={ownerSourceCard ? () => handleDuplicate(ownerSourceCard) : undefined}
+      />
 
       <TeamVCardsToolbar
         searchTerm={searchTerm}
@@ -305,7 +315,7 @@ export default function TeamVCardsView() {
             <TeamVCardsCreatePlaceholder
               canCreate={directory.canCreate}
               quotaLimit={directory.quotaLimit}
-              onCreate={goCreate}
+              onAddMember={ownerSourceCard ? () => handleDuplicate(ownerSourceCard) : undefined}
             />
           ) : null}
         </div>

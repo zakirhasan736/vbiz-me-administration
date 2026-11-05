@@ -476,6 +476,8 @@ export type CardCapacity = {
   used: number
   remaining: number | null
   canCreate: boolean
+  /** Linked corporate team member: create and duplicate stay off. */
+  memberLocked?: boolean
 }
 
 export type OwnerPackageFeature = {
