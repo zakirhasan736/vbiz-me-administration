@@ -7223,6 +7223,16 @@ __metadata:
   languageName: node
   linkType: hard
 
+"react-colorful@npm:^5.8.1":
+  version: 5.8.1
+  resolution: "react-colorful@npm:5.8.1"
+  peerDependencies:
+    react: ">=16.8.0"
+    react-dom: ">=16.8.0"
+  checksum: 10c0/cd1705cdb218f9f43d376f36306968aa304e0d8018dcff198c798c2c56bf4873ea918580a57a0cceaab62ba7621663234ffad35f3d4ebd9198e65f926f9ec8fe
+  languageName: node
+  linkType: hard
+
 "react-dom@npm:19.2.4":
   version: 19.2.4
   resolution: "react-dom@npm:19.2.4"
@@ -8647,6 +8657,7 @@ __metadata:
     qrcode: "npm:^1.5.4"
     qrcode.react: "npm:^4.2.0"
     react: "npm:19.2.4"
+    react-colorful: "npm:^5.8.1"
     react-dom: "npm:19.2.4"
     react-is: "npm:^19.2.6"
     react-redux: "npm:^9.2.0"

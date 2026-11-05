@@ -297,7 +297,7 @@ export function CustomColorPicker({
             <div className={styles.engine}>
               <HsvColorPicker
                 color={hsv}
-                onChange={(next) => publish(next, false)}
+                onChange={(next: Hsv) => publish(next, false)}
                 onChangeEnd={() => setRecent(rememberRecentColor(hsvToHex(hsvRef.current)))}
               />
             </div>
