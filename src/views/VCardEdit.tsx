@@ -400,7 +400,11 @@ export default function VCardEdit({ basePath, segments, cardId }: VCardEditProps
     if (isPersonalEditorNavId(activeNavId)) return 'home'
     return activeNavId
   }, [activeNavId])
-  const previewSectionForRoute = route.isSettings ? DEFAULT_PROFILE_SECTION : activeMainNavId
+  const previewSectionForRoute = route.isSettings
+    ? route.settingsTab === 'about-style'
+      ? 'about'
+      : DEFAULT_PROFILE_SECTION
+    : activeMainNavId
 
   useEffect(() => {
     setEditorSectionId(previewSectionForRoute)

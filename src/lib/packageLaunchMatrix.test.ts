@@ -48,6 +48,16 @@ describe('package launch matrix', () => {
     expect(
       catalogFeatureAllowed(
         {
+          access: { ...paidAccess, allow_auto_card_builder: false },
+          features: [{ featureKey: 'allow_auto_card_builder', featureValue: '0' }],
+          subscriptionActive: false,
+        },
+        'allow_auto_card_builder'
+      )
+    ).toBe(true)
+    expect(
+      catalogFeatureAllowed(
+        {
           access: { ...paidAccess, allow_push_notification: false },
           features: [{ featureKey: 'allow_push_notification', featureValue: '0' }],
           subscriptionActive: false,
@@ -57,16 +67,20 @@ describe('package launch matrix', () => {
     ).toBe(true)
   })
 
-  it('keeps push notification and Canva on even when the package flag is explicitly off', () => {
+  it('keeps push notification, Canva, and the AI card builder on even when the package flag is explicitly off', () => {
     const access = entitlementsFromFeatures(
       [
         { featureKey: 'allow_push_notification', featureValue: '0' },
         { featureKey: 'allow_canva', featureValue: '0' },
+        { featureKey: 'allow_auto_card_builder', featureValue: '0' },
+        { featureKey: 'allow_ai_assistance', featureValue: '0' },
       ],
       false
     )
     expect(access.allow_push_notification).toBe(true)
     expect(access.allow_canva).toBe(true)
+    expect(access.allow_auto_card_builder).toBe(true)
+    expect(access.allow_ai_assistance).toBe(false)
   })
 
   it('treats FEATURE_NOT_INCLUDED and PACKAGE_FEATURE_LOCKED as the same lock', () => {

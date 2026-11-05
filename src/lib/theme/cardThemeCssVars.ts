@@ -305,7 +305,7 @@ function cssDeclarations(vars: Record<string, string>): string {
 }
 
 function aboutTitlePaintCss(scope: string, style: string): string {
-  const root = `${scope} [data-section-id='about'] .vbiz-hero-banner`
+  const root = `${scope} [data-section-id='about'] .vbiz-about-screen`
   if (style === 'gradient') {
     return `${root} .vbiz-hero-title,
 ${root} .vbiz-hero-title .from-gold {
@@ -1860,15 +1860,15 @@ ${themeUi('.vbiz-icon-btn:hover')} {
 .vbiz-profile-root.vbiz-theme-light .vbiz-card:not(.vbiz-faq-item):not(.vbiz-review-card),
 .vbiz-profile-root.vbiz-theme-dark .vbiz-card:not(.vbiz-faq-item):not(.vbiz-review-card),
 .vbiz-profile-root.dark .vbiz-card:not(.vbiz-faq-item):not(.vbiz-review-card),
-.vbiz-profile-root.vbiz-theme-light .rounded-3xl.border.bg-white\\/50:not(.vbiz-review-card):not(.vbiz-section-banner):not(.vbiz-floating-nav-inner),
-.vbiz-profile-root.vbiz-theme-dark .rounded-3xl.border.bg-white\\/50:not(.vbiz-review-card):not(.vbiz-section-banner):not(.vbiz-floating-nav-inner),
-.vbiz-profile-root.dark .rounded-3xl.border.bg-white\\/50:not(.vbiz-review-card):not(.vbiz-section-banner):not(.vbiz-floating-nav-inner),
-.vbiz-profile-root.vbiz-theme-light .rounded-3xl.border.bg-white:not(.vbiz-review-card):not(.vbiz-section-banner):not(.vbiz-floating-nav-inner),
-.vbiz-profile-root.vbiz-theme-dark .rounded-3xl.border.bg-white:not(.vbiz-review-card):not(.vbiz-section-banner):not(.vbiz-floating-nav-inner),
-.vbiz-profile-root.dark .rounded-3xl.border.bg-white:not(.vbiz-review-card):not(.vbiz-section-banner):not(.vbiz-floating-nav-inner),
-.vbiz-profile-root.vbiz-theme-light .rounded-2xl.border.bg-white:not(.vbiz-review-card):not(.vbiz-section-banner):not(.vbiz-floating-nav-inner),
-.vbiz-profile-root.vbiz-theme-dark .rounded-2xl.border.bg-white:not(.vbiz-review-card):not(.vbiz-section-banner):not(.vbiz-floating-nav-inner),
-.vbiz-profile-root.dark .rounded-2xl.border.bg-white:not(.vbiz-review-card):not(.vbiz-section-banner):not(.vbiz-floating-nav-inner) {
+.vbiz-profile-root.vbiz-theme-light .rounded-3xl.border.bg-white\\/50:not(.vbiz-review-card):not(.vbiz-section-banner):not(.vbiz-floating-nav-inner):not(.vbiz-about-pillar),
+.vbiz-profile-root.vbiz-theme-dark .rounded-3xl.border.bg-white\\/50:not(.vbiz-review-card):not(.vbiz-section-banner):not(.vbiz-floating-nav-inner):not(.vbiz-about-pillar),
+.vbiz-profile-root.dark .rounded-3xl.border.bg-white\\/50:not(.vbiz-review-card):not(.vbiz-section-banner):not(.vbiz-floating-nav-inner):not(.vbiz-about-pillar),
+.vbiz-profile-root.vbiz-theme-light .rounded-3xl.border.bg-white:not(.vbiz-review-card):not(.vbiz-section-banner):not(.vbiz-floating-nav-inner):not(.vbiz-about-pillar),
+.vbiz-profile-root.vbiz-theme-dark .rounded-3xl.border.bg-white:not(.vbiz-review-card):not(.vbiz-section-banner):not(.vbiz-floating-nav-inner):not(.vbiz-about-pillar),
+.vbiz-profile-root.dark .rounded-3xl.border.bg-white:not(.vbiz-review-card):not(.vbiz-section-banner):not(.vbiz-floating-nav-inner):not(.vbiz-about-pillar),
+.vbiz-profile-root.vbiz-theme-light .rounded-2xl.border.bg-white:not(.vbiz-review-card):not(.vbiz-section-banner):not(.vbiz-floating-nav-inner):not(.vbiz-about-pillar),
+.vbiz-profile-root.vbiz-theme-dark .rounded-2xl.border.bg-white:not(.vbiz-review-card):not(.vbiz-section-banner):not(.vbiz-floating-nav-inner):not(.vbiz-about-pillar),
+.vbiz-profile-root.dark .rounded-2xl.border.bg-white:not(.vbiz-review-card):not(.vbiz-section-banner):not(.vbiz-floating-nav-inner):not(.vbiz-about-pillar) {
   background-color: var(--vbiz-content-card-bg, var(--vbiz-surface)) !important;
   background-image: none !important;
   border-color: var(--vbiz-content-card-border, var(--vbiz-border)) !important;
@@ -2128,79 +2128,166 @@ ${themeUi('.vbiz-icon-btn:hover')} {
   color: inherit !important;
 }
 
-/* About tab screen. Values follow Theme Colors + Tab banner until About Tabs overrides a field. */
-.vbiz-profile-root [data-section-id='about'] .vbiz-hero-banner {
+/* About Tabs Settings. Theme-qualified selectors beat global hero and content-card paints. */
+.vbiz-profile-root [data-section-id='about'] .vbiz-hero-banner.vbiz-about-screen,
+.vbiz-profile-root.vbiz-theme-light [data-section-id='about'] .vbiz-hero-banner.vbiz-about-screen,
+.vbiz-profile-root.vbiz-theme-dark [data-section-id='about'] .vbiz-hero-banner.vbiz-about-screen,
+.vbiz-profile-root.dark [data-section-id='about'] .vbiz-hero-banner.vbiz-about-screen {
   background-color: var(--vbiz-about-bg, var(--vbiz-banner-bg)) !important;
   background-image: var(--vbiz-about-bg-image, var(--vbiz-banner-bg-image, none)) !important;
   border-color: var(--vbiz-about-border, var(--vbiz-banner-border)) !important;
 }
-.vbiz-profile-root [data-section-id='about'] .vbiz-hero-banner .vbiz-hero-eyebrow,
-.vbiz-profile-root [data-section-id='about'] .vbiz-hero-banner .vbiz-hero-eyebrow svg {
+.vbiz-profile-root [data-section-id='about'] .vbiz-about-screen .vbiz-hero-eyebrow,
+.vbiz-profile-root [data-section-id='about'] .vbiz-about-screen .vbiz-hero-eyebrow svg,
+.vbiz-profile-root.vbiz-theme-light [data-section-id='about'] .vbiz-about-screen .vbiz-hero-eyebrow,
+.vbiz-profile-root.vbiz-theme-light [data-section-id='about'] .vbiz-about-screen .vbiz-hero-eyebrow svg,
+.vbiz-profile-root.vbiz-theme-dark [data-section-id='about'] .vbiz-about-screen .vbiz-hero-eyebrow,
+.vbiz-profile-root.vbiz-theme-dark [data-section-id='about'] .vbiz-about-screen .vbiz-hero-eyebrow svg,
+.vbiz-profile-root.dark [data-section-id='about'] .vbiz-about-screen .vbiz-hero-eyebrow,
+.vbiz-profile-root.dark [data-section-id='about'] .vbiz-about-screen .vbiz-hero-eyebrow svg {
   color: var(--vbiz-about-label, var(--vbiz-banner-label, var(--vbiz-accent))) !important;
+  -webkit-text-fill-color: var(--vbiz-about-label, var(--vbiz-banner-label, var(--vbiz-accent))) !important;
 }
-.vbiz-profile-root [data-section-id='about'] .vbiz-hero-banner .vbiz-about-quote {
+.vbiz-profile-root [data-section-id='about'] .vbiz-about-screen .vbiz-about-quote,
+.vbiz-profile-root.vbiz-theme-light [data-section-id='about'] .vbiz-about-screen .vbiz-about-quote,
+.vbiz-profile-root.vbiz-theme-dark [data-section-id='about'] .vbiz-about-screen .vbiz-about-quote,
+.vbiz-profile-root.dark [data-section-id='about'] .vbiz-about-screen .vbiz-about-quote {
   color: color-mix(in srgb, var(--vbiz-about-label, var(--vbiz-accent)) 18%, transparent) !important;
 }
-.vbiz-profile-root [data-section-id='about'] .vbiz-hero-banner .vbiz-hero-eyebrow {
+.vbiz-profile-root [data-section-id='about'] .vbiz-about-screen .vbiz-hero-eyebrow,
+.vbiz-profile-root.vbiz-theme-light [data-section-id='about'] .vbiz-about-screen .vbiz-hero-eyebrow,
+.vbiz-profile-root.vbiz-theme-dark [data-section-id='about'] .vbiz-about-screen .vbiz-hero-eyebrow,
+.vbiz-profile-root.dark [data-section-id='about'] .vbiz-about-screen .vbiz-hero-eyebrow {
   border-color: color-mix(in srgb, var(--vbiz-about-label, var(--vbiz-accent)) 45%, transparent) !important;
 }
-.vbiz-profile-root [data-section-id='about'] .vbiz-hero-banner .vbiz-hero-subtitle,
-.vbiz-profile-root [data-section-id='about'] .vbiz-hero-banner .text-zinc-300,
-.vbiz-profile-root [data-section-id='about'] .vbiz-hero-banner .text-zinc-400 {
+.vbiz-profile-root [data-section-id='about'] .vbiz-about-screen .vbiz-hero-subtitle,
+.vbiz-profile-root.vbiz-theme-light [data-section-id='about'] .vbiz-about-screen .vbiz-hero-subtitle,
+.vbiz-profile-root.vbiz-theme-dark [data-section-id='about'] .vbiz-about-screen .vbiz-hero-subtitle,
+.vbiz-profile-root.dark [data-section-id='about'] .vbiz-about-screen .vbiz-hero-subtitle {
   color: var(--vbiz-about-description, var(--vbiz-banner-description)) !important;
+  -webkit-text-fill-color: var(--vbiz-about-description, var(--vbiz-banner-description)) !important;
 }
-.vbiz-profile-root [data-section-id='about'] .vbiz-hero-banner .vbiz-about-prose,
-.vbiz-profile-root [data-section-id='about'] .vbiz-hero-banner .vbiz-about-prose :where(p, li, span, em) {
+.vbiz-profile-root [data-section-id='about'] .vbiz-about-screen .vbiz-about-prose,
+.vbiz-profile-root [data-section-id='about'] .vbiz-about-screen .vbiz-about-prose :where(p, li, span, em),
+.vbiz-profile-root.vbiz-theme-light [data-section-id='about'] .vbiz-about-screen .vbiz-about-prose,
+.vbiz-profile-root.vbiz-theme-light [data-section-id='about'] .vbiz-about-screen .vbiz-about-prose :where(p, li, span, em),
+.vbiz-profile-root.vbiz-theme-dark [data-section-id='about'] .vbiz-about-screen .vbiz-about-prose,
+.vbiz-profile-root.vbiz-theme-dark [data-section-id='about'] .vbiz-about-screen .vbiz-about-prose :where(p, li, span, em),
+.vbiz-profile-root.dark [data-section-id='about'] .vbiz-about-screen .vbiz-about-prose,
+.vbiz-profile-root.dark [data-section-id='about'] .vbiz-about-screen .vbiz-about-prose :where(p, li, span, em) {
   color: var(--vbiz-about-text, var(--vbiz-banner-text)) !important;
+  -webkit-text-fill-color: var(--vbiz-about-text, var(--vbiz-banner-text)) !important;
 }
-.vbiz-profile-root [data-section-id='about'] .vbiz-hero-banner .vbiz-about-prose :where(h1, h2, h3, strong, b) {
+.vbiz-profile-root [data-section-id='about'] .vbiz-about-screen .vbiz-about-prose :where(h1, h2, h3, strong, b),
+.vbiz-profile-root.vbiz-theme-light [data-section-id='about'] .vbiz-about-screen .vbiz-about-prose :where(h1, h2, h3, strong, b),
+.vbiz-profile-root.vbiz-theme-dark [data-section-id='about'] .vbiz-about-screen .vbiz-about-prose :where(h1, h2, h3, strong, b),
+.vbiz-profile-root.dark [data-section-id='about'] .vbiz-about-screen .vbiz-about-prose :where(h1, h2, h3, strong, b) {
   color: var(--vbiz-about-title, var(--vbiz-banner-title)) !important;
+  -webkit-text-fill-color: var(--vbiz-about-title, var(--vbiz-banner-title)) !important;
 }
-.vbiz-profile-root [data-section-id='about'] .vbiz-hero-banner .vbiz-about-prose a {
+.vbiz-profile-root [data-section-id='about'] .vbiz-about-screen .vbiz-about-prose a,
+.vbiz-profile-root.vbiz-theme-light [data-section-id='about'] .vbiz-about-screen .vbiz-about-prose a,
+.vbiz-profile-root.vbiz-theme-dark [data-section-id='about'] .vbiz-about-screen .vbiz-about-prose a,
+.vbiz-profile-root.dark [data-section-id='about'] .vbiz-about-screen .vbiz-about-prose a {
   color: var(--vbiz-about-label, var(--vbiz-accent)) !important;
+  -webkit-text-fill-color: var(--vbiz-about-label, var(--vbiz-accent)) !important;
 }
-.vbiz-profile-root [data-section-id='about'] .vbiz-hero-banner .vbiz-about-headline {
+.vbiz-profile-root [data-section-id='about'] .vbiz-about-screen .vbiz-about-headline,
+.vbiz-profile-root.vbiz-theme-light [data-section-id='about'] .vbiz-about-screen .vbiz-about-headline,
+.vbiz-profile-root.vbiz-theme-dark [data-section-id='about'] .vbiz-about-screen .vbiz-about-headline,
+.vbiz-profile-root.dark [data-section-id='about'] .vbiz-about-screen .vbiz-about-headline {
   color: var(--vbiz-about-headline, var(--vbiz-about-label)) !important;
+  -webkit-text-fill-color: var(--vbiz-about-headline, var(--vbiz-about-label)) !important;
 }
-.vbiz-profile-root [data-section-id='about'] .vbiz-hero-banner .vbiz-about-highlight,
-.vbiz-profile-root [data-section-id='about'] .vbiz-hero-banner .vbiz-about-highlight .vbiz-hero-heading,
-.vbiz-profile-root [data-section-id='about'] .vbiz-hero-banner .vbiz-about-highlight .vcard-rich-html,
-.vbiz-profile-root [data-section-id='about'] .vbiz-hero-banner .vbiz-about-highlight .vcard-rich-html :where(p, span, strong) {
+.vbiz-profile-root [data-section-id='about'] .vbiz-about-screen .vbiz-about-highlight,
+.vbiz-profile-root [data-section-id='about'] .vbiz-about-screen .vbiz-about-highlight .vbiz-hero-heading,
+.vbiz-profile-root [data-section-id='about'] .vbiz-about-screen .vbiz-about-highlight .vcard-rich-html,
+.vbiz-profile-root [data-section-id='about'] .vbiz-about-screen .vbiz-about-highlight .vcard-rich-html :where(p, span, strong),
+.vbiz-profile-root.vbiz-theme-light [data-section-id='about'] .vbiz-about-screen .vbiz-about-highlight,
+.vbiz-profile-root.vbiz-theme-light [data-section-id='about'] .vbiz-about-screen .vbiz-about-highlight .vbiz-hero-heading,
+.vbiz-profile-root.vbiz-theme-light [data-section-id='about'] .vbiz-about-screen .vbiz-about-highlight .vcard-rich-html,
+.vbiz-profile-root.vbiz-theme-dark [data-section-id='about'] .vbiz-about-screen .vbiz-about-highlight,
+.vbiz-profile-root.vbiz-theme-dark [data-section-id='about'] .vbiz-about-screen .vbiz-about-highlight .vbiz-hero-heading,
+.vbiz-profile-root.vbiz-theme-dark [data-section-id='about'] .vbiz-about-screen .vbiz-about-highlight .vcard-rich-html,
+.vbiz-profile-root.dark [data-section-id='about'] .vbiz-about-screen .vbiz-about-highlight,
+.vbiz-profile-root.dark [data-section-id='about'] .vbiz-about-screen .vbiz-about-highlight .vbiz-hero-heading,
+.vbiz-profile-root.dark [data-section-id='about'] .vbiz-about-screen .vbiz-about-highlight .vcard-rich-html {
   color: var(--vbiz-about-highlight, var(--vbiz-about-title)) !important;
+  -webkit-text-fill-color: var(--vbiz-about-highlight, var(--vbiz-about-title)) !important;
 }
-.vbiz-profile-root [data-section-id='about'] .vbiz-about-feature {
+.vbiz-profile-root [data-section-id='about'] .vbiz-about-feature,
+.vbiz-profile-root.vbiz-theme-light [data-section-id='about'] .vbiz-about-feature,
+.vbiz-profile-root.vbiz-theme-dark [data-section-id='about'] .vbiz-about-feature,
+.vbiz-profile-root.dark [data-section-id='about'] .vbiz-about-feature {
   border-color: var(--vbiz-about-image-border, var(--vbiz-about-border)) !important;
 }
-.vbiz-profile-root [data-section-id='about'] .vbiz-hero-banner .vbiz-hero-card {
+.vbiz-profile-root [data-section-id='about'] .vbiz-about-screen .vbiz-about-pillar,
+.vbiz-profile-root.vbiz-theme-light [data-section-id='about'] .vbiz-about-screen .vbiz-about-pillar.rounded-3xl.border,
+.vbiz-profile-root.vbiz-theme-dark [data-section-id='about'] .vbiz-about-screen .vbiz-about-pillar.rounded-3xl.border,
+.vbiz-profile-root.dark [data-section-id='about'] .vbiz-about-screen .vbiz-about-pillar.rounded-3xl.border {
   background-color: var(--vbiz-about-pillar-bg, var(--vbiz-surface)) !important;
+  background-image: none !important;
   border-color: var(--vbiz-about-border, var(--vbiz-border)) !important;
-}
-.vbiz-profile-root [data-section-id='about'] .vbiz-hero-banner .vbiz-hero-card h4,
-.vbiz-profile-root [data-section-id='about'] .vbiz-hero-banner .vbiz-hero-card .text-zinc-900 {
   color: var(--vbiz-about-pillar-title, var(--vbiz-text)) !important;
 }
-.vbiz-profile-root [data-section-id='about'] .vbiz-hero-banner .vbiz-hero-card p,
-.vbiz-profile-root [data-section-id='about'] .vbiz-hero-banner .vbiz-hero-card .text-zinc-500 {
-  color: var(--vbiz-about-pillar-desc, var(--vbiz-text-muted)) !important;
+.vbiz-profile-root [data-section-id='about'] .vbiz-about-screen .vbiz-about-pillar h4,
+.vbiz-profile-root.vbiz-theme-light [data-section-id='about'] .vbiz-about-screen .vbiz-about-pillar h4,
+.vbiz-profile-root.vbiz-theme-dark [data-section-id='about'] .vbiz-about-screen .vbiz-about-pillar h4,
+.vbiz-profile-root.dark [data-section-id='about'] .vbiz-about-screen .vbiz-about-pillar h4 {
+  color: var(--vbiz-about-pillar-title, var(--vbiz-text)) !important;
+  -webkit-text-fill-color: var(--vbiz-about-pillar-title, var(--vbiz-text)) !important;
 }
-.vbiz-profile-root [data-section-id='about'] .vbiz-about-pillar-icon {
+.vbiz-profile-root [data-section-id='about'] .vbiz-about-screen .vbiz-about-pillar p,
+.vbiz-profile-root.vbiz-theme-light [data-section-id='about'] .vbiz-about-screen .vbiz-about-pillar p,
+.vbiz-profile-root.vbiz-theme-dark [data-section-id='about'] .vbiz-about-screen .vbiz-about-pillar p,
+.vbiz-profile-root.dark [data-section-id='about'] .vbiz-about-screen .vbiz-about-pillar p {
+  color: var(--vbiz-about-pillar-desc, var(--vbiz-text-muted)) !important;
+  -webkit-text-fill-color: var(--vbiz-about-pillar-desc, var(--vbiz-text-muted)) !important;
+}
+.vbiz-profile-root [data-section-id='about'] .vbiz-about-pillar-icon,
+.vbiz-profile-root [data-section-id='about'] .vbiz-about-pillar-icon svg,
+.vbiz-profile-root.vbiz-theme-light [data-section-id='about'] .vbiz-about-pillar-icon,
+.vbiz-profile-root.vbiz-theme-light [data-section-id='about'] .vbiz-about-pillar-icon svg,
+.vbiz-profile-root.vbiz-theme-dark [data-section-id='about'] .vbiz-about-pillar-icon,
+.vbiz-profile-root.vbiz-theme-dark [data-section-id='about'] .vbiz-about-pillar-icon svg,
+.vbiz-profile-root.dark [data-section-id='about'] .vbiz-about-pillar-icon,
+.vbiz-profile-root.dark [data-section-id='about'] .vbiz-about-pillar-icon svg {
   color: var(--vbiz-about-pillar-icon, var(--vbiz-accent)) !important;
+  -webkit-text-fill-color: var(--vbiz-about-pillar-icon, var(--vbiz-accent)) !important;
+}
+.vbiz-profile-root [data-section-id='about'] .vbiz-about-pillar-icon,
+.vbiz-profile-root.vbiz-theme-light [data-section-id='about'] .vbiz-about-pillar-icon,
+.vbiz-profile-root.vbiz-theme-dark [data-section-id='about'] .vbiz-about-pillar-icon,
+.vbiz-profile-root.dark [data-section-id='about'] .vbiz-about-pillar-icon {
   background-color: color-mix(in srgb, var(--vbiz-about-pillar-icon, var(--vbiz-accent)) 16%, transparent) !important;
 }
-.vbiz-profile-root [data-section-id='about'] .vbiz-about-pillar-icon svg {
-  color: var(--vbiz-about-pillar-icon, var(--vbiz-accent)) !important;
-}
-.vbiz-profile-root [data-section-id='about'] .vbiz-hero-banner .vbiz-about-footer {
+.vbiz-profile-root [data-section-id='about'] .vbiz-about-screen .vbiz-about-footer,
+.vbiz-profile-root.vbiz-theme-light [data-section-id='about'] .vbiz-about-screen .vbiz-about-footer,
+.vbiz-profile-root.vbiz-theme-dark [data-section-id='about'] .vbiz-about-screen .vbiz-about-footer,
+.vbiz-profile-root.dark [data-section-id='about'] .vbiz-about-screen .vbiz-about-footer {
   color: var(--vbiz-about-footer, var(--vbiz-about-title)) !important;
+  -webkit-text-fill-color: var(--vbiz-about-footer, var(--vbiz-about-title)) !important;
 }
-.vbiz-profile-root [data-section-id='about'] .vbiz-hero-banner .vbiz-about-footer-sub {
+.vbiz-profile-root [data-section-id='about'] .vbiz-about-screen .vbiz-about-footer-sub,
+.vbiz-profile-root.vbiz-theme-light [data-section-id='about'] .vbiz-about-screen .vbiz-about-footer-sub,
+.vbiz-profile-root.vbiz-theme-dark [data-section-id='about'] .vbiz-about-screen .vbiz-about-footer-sub,
+.vbiz-profile-root.dark [data-section-id='about'] .vbiz-about-screen .vbiz-about-footer-sub {
   color: var(--vbiz-about-description, var(--vbiz-banner-description)) !important;
+  -webkit-text-fill-color: var(--vbiz-about-description, var(--vbiz-banner-description)) !important;
 }
-.vbiz-profile-root [data-section-id='about'] .vbiz-hero-banner .vbiz-about-tagline {
+.vbiz-profile-root [data-section-id='about'] .vbiz-about-screen .vbiz-about-tagline,
+.vbiz-profile-root.vbiz-theme-light [data-section-id='about'] .vbiz-about-screen .vbiz-about-tagline,
+.vbiz-profile-root.vbiz-theme-dark [data-section-id='about'] .vbiz-about-screen .vbiz-about-tagline,
+.vbiz-profile-root.dark [data-section-id='about'] .vbiz-about-screen .vbiz-about-tagline {
   color: var(--vbiz-about-tagline, var(--vbiz-accent)) !important;
+  -webkit-text-fill-color: var(--vbiz-about-tagline, var(--vbiz-accent)) !important;
 }
-.vbiz-profile-root [data-section-id='about'] .vbiz-hero-banner .vbiz-about-mark {
+.vbiz-profile-root [data-section-id='about'] .vbiz-about-screen .vbiz-about-mark,
+.vbiz-profile-root.vbiz-theme-light [data-section-id='about'] .vbiz-about-screen .vbiz-about-mark,
+.vbiz-profile-root.vbiz-theme-dark [data-section-id='about'] .vbiz-about-screen .vbiz-about-mark,
+.vbiz-profile-root.dark [data-section-id='about'] .vbiz-about-screen .vbiz-about-mark {
   color: var(--vbiz-about-title, #ffffff) !important;
+  -webkit-text-fill-color: var(--vbiz-about-title, #ffffff) !important;
   border-color: color-mix(in srgb, var(--vbiz-about-label, var(--vbiz-accent)) 45%, transparent) !important;
 }
 `.trim()

@@ -174,15 +174,42 @@ describe('sectionStyleDefaults', () => {
     const patched = patchSectionStyleMode(stock, 'aboutScreen', 'dark', {
       variant: 'solid',
       bg: '#102030',
+      border: '#445566',
       title: '#aabbcc',
+      titleStyle: 'solid',
       label: '#ddeeff',
       description: '#112233',
+      text: '#223344',
+      headline: '#334455',
+      highlight: '#556677',
+      imageBorder: '#667788',
+      pillarBg: '#778899',
+      pillarTitle: '#8899aa',
+      pillarDescription: '#99aabb',
+      pillarIcon: '#aabbcc',
+      footer: '#bbccdd',
+      tagline: '#ccddee',
     }) as typeof stock
     const css = buildCardThemeStyleSheet(patched, 'dark')
     expect(css).toContain('--vbiz-about-bg: #102030')
+    expect(css).toContain('--vbiz-about-border: #445566')
     expect(css).toContain('--vbiz-about-title: #aabbcc')
+    expect(css).toContain('--vbiz-about-label: #ddeeff')
+    expect(css).toContain('--vbiz-about-description: #112233')
+    expect(css).toContain('--vbiz-about-text: #223344')
+    expect(css).toContain('--vbiz-about-headline: #334455')
+    expect(css).toContain('--vbiz-about-highlight: #556677')
+    expect(css).toContain('--vbiz-about-image-border: #667788')
+    expect(css).toContain('--vbiz-about-pillar-bg: #778899')
+    expect(css).toContain('--vbiz-about-pillar-title: #8899aa')
+    expect(css).toContain('--vbiz-about-pillar-desc: #99aabb')
+    expect(css).toContain('--vbiz-about-pillar-icon: #aabbcc')
+    expect(css).toContain('--vbiz-about-footer: #bbccdd')
+    expect(css).toContain('--vbiz-about-tagline: #ccddee')
     expect(css).toContain('--vbiz-about-bg-image: none')
     expect(css).toContain("[data-section-id='about'] .vbiz-hero-banner")
+    expect(css).toContain('.vbiz-about-screen')
+    expect(css).toContain('.vbiz-about-pillar')
     expect(css).toContain('var(--vbiz-about-description')
     const cleared = clearOneSectionStyleOverride(patched, 'aboutScreen') as typeof stock
     expect(cleared.components.aboutScreen).toBeUndefined()

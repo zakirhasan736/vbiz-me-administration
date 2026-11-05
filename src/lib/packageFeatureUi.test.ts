@@ -17,10 +17,11 @@ describe('corporate manage-access overrides', () => {
     expect(rows.map((row) => row.featureKey)).toEqual(['allow_2d_explainer', 'max_file_size_mb'])
   })
 
-  it('does not let Corporate accounts override mandatory push notification or Canva', () => {
+  it('does not let Corporate accounts override mandatory push notification, Canva, or the AI card builder', () => {
     const rows = overridablePackageFeatures([
       { featureKey: 'allow_push_notification', featureValue: '0' },
       { featureKey: 'allow_canva', featureValue: '1' },
+      { featureKey: 'allow_auto_card_builder', featureValue: '0' },
       { featureKey: 'allow_seo', featureValue: '1' },
     ])
     expect(rows.map((row) => row.featureKey)).toEqual(['allow_seo'])

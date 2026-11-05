@@ -142,7 +142,7 @@ const settingTabs = [
   { id: 'integration', label: 'Integration', icon: Plug },
   { id: 'template', label: 'Template Settings', icon: LayoutTemplate },
   { id: 'content-cards', label: 'Content Cards', icon: Layers },
-  { id: 'about-style', label: 'About Tabs', icon: BookOpen },
+  { id: 'about-style', label: 'About Tabs Settings', icon: BookOpen },
   { id: 'reviews-style', label: 'Reviews', icon: MessageSquareQuote },
   { id: 'faq-style', label: 'FAQ', icon: CircleHelp },
   { id: 'my-info-buttons', label: 'My Info Buttons', icon: Phone },
@@ -2212,7 +2212,7 @@ export function TabSetting({ basePath, settingsTab = 'general', cardId }: TabSet
             : activeTab === 'content-cards'
               ? 'Style shared content cards (services, blogs, and similar sections).'
               : activeTab === 'about-style'
-                ? 'Style the About tab screen. Colors follow Theme Colors and Tab banner styles until you change a field. Light and dark are saved separately.'
+                ? 'About Tabs Settings. Banner, title, label, description, feature image, and the text on that tab update the builder preview and the public card as you change them. Light and dark are saved separately.'
                 : activeTab === 'reviews-style'
                   ? 'Style review cards, stars, and user chrome for light and dark mode.'
                   : activeTab === 'faq-style'

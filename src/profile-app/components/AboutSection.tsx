@@ -16,18 +16,18 @@ const FIXED_SECTION_TITLE = 'About Me'
 const PILLAR_ICONS = [Lightbulb, Target, Users, Flag] as const
 
 const ABOUT_INTRO_PROSE =
-  'vcard-rich-html prose prose-invert prose-sm md:prose-base relative max-w-2xl pl-2 leading-relaxed font-medium text-zinc-300 ' +
-  '[&_a]:text-gold [&_a]:underline-offset-2 hover:[&_a]:underline ' +
-  '[&_h1]:mb-2 [&_h1]:text-xl [&_h1]:font-bold [&_h1]:text-white ' +
-  '[&_h2]:mb-2 [&_h2]:text-lg [&_h2]:font-bold [&_h2]:text-white ' +
-  '[&_h3]:mb-2 [&_h3]:text-base [&_h3]:font-bold [&_h3]:text-white ' +
+  'vcard-rich-html prose prose-invert prose-sm md:prose-base relative max-w-2xl pl-2 leading-relaxed font-medium ' +
+  '[&_a]:underline-offset-2 hover:[&_a]:underline ' +
+  '[&_h1]:mb-2 [&_h1]:text-xl [&_h1]:font-bold ' +
+  '[&_h2]:mb-2 [&_h2]:text-lg [&_h2]:font-bold ' +
+  '[&_h3]:mb-2 [&_h3]:text-base [&_h3]:font-bold ' +
   '[&_p]:mb-3 [&_p]:leading-relaxed ' +
-  '[&_strong]:font-bold [&_strong]:text-white ' +
+  '[&_strong]:font-bold ' +
   '[&_em]:italic ' +
   '[&_ul]:my-3 [&_ul]:list-disc [&_ul]:pl-5 ' +
   '[&_ol]:my-3 [&_ol]:list-decimal [&_ol]:pl-5 ' +
   '[&_li]:mb-1 ' +
-  '[&_blockquote]:border-gold/40 [&_blockquote]:border-l-2 [&_blockquote]:pl-3 [&_blockquote]:italic [&_blockquote]:text-zinc-400'
+  '[&_blockquote]:border-l-2 [&_blockquote]:pl-3 [&_blockquote]:italic'
 
 function splitSectionTitle(title: string): { lead: string; accent: string } {
   const words = title.trim().split(/\s+/)
@@ -180,7 +180,7 @@ export const AboutSection = () => {
   return (
     <V3SectionShell>
       <div className="flex flex-col gap-4 md:gap-6">
-        <div className="vbiz-hero-banner dark:border-gold/20 relative flex min-h-52 w-full flex-col overflow-hidden rounded-4xl border border-zinc-800 shadow-xl sm:min-h-56 md:min-h-64 md:rounded-[2.5rem]">
+        <div className="vbiz-hero-banner vbiz-about-screen relative flex min-h-52 w-full flex-col overflow-hidden rounded-4xl border shadow-xl sm:min-h-56 md:min-h-64 md:rounded-[2.5rem]">
           <div
             className="pointer-events-none absolute inset-0 z-0 opacity-40"
             style={{
@@ -191,7 +191,7 @@ export const AboutSection = () => {
           {ownerInitial ? (
             <div className={`absolute z-20 ${compact ? 'top-3 right-3' : 'top-4 right-4 md:top-6 md:right-6'}`}>
               <div className="vbiz-about-mark border-gold/30 flex h-10 w-10 flex-col items-center justify-center rounded-xl border bg-black/40 shadow-2xl backdrop-blur-xl md:h-12 md:w-12">
-                <span className="vbiz-about-mark mb-0.5 font-serif text-lg font-black tracking-tighter text-white drop-shadow-md md:text-2xl">
+                <span className="vbiz-about-mark mb-0.5 font-serif text-lg font-black tracking-tighter drop-shadow-md md:text-2xl">
                   {ownerInitial}
                 </span>
               </div>
@@ -205,11 +205,11 @@ export const AboutSection = () => {
           >
             <div className="mt-auto flex max-w-3xl flex-col gap-2 pt-10 sm:gap-3 sm:pt-0 md:gap-3">
               <div className="vbiz-hero-eyebrow vbiz-eyebrow self-start shadow-sm backdrop-blur-md md:text-xs">
-                <Sparkles size={14} className="text-gold" /> {sectionTitle}
+                <Sparkles size={14} /> {sectionTitle}
               </div>
 
               {banner.title ? (
-                <h2 className="vbiz-hero-title text-2xl leading-[1.15] font-black tracking-tight text-white sm:text-3xl md:text-4xl lg:text-4xl">
+                <h2 className="vbiz-hero-title text-2xl leading-[1.15] font-black tracking-tight sm:text-3xl md:text-4xl lg:text-4xl">
                   {titleAccent ? (
                     <>
                       {titleLead}{' '}
@@ -223,7 +223,7 @@ export const AboutSection = () => {
                 </h2>
               ) : null}
               {banner.description ? (
-                <p className="vbiz-hero-subtitle max-w-2xl text-sm leading-snug font-medium text-zinc-300 md:text-base">
+                <p className="vbiz-hero-subtitle max-w-2xl text-sm leading-snug font-medium md:text-base">
                   {banner.description}
                 </p>
               ) : null}
@@ -260,22 +260,22 @@ export const AboutSection = () => {
                     textClassName={
                       hasIntroHtml
                         ? ABOUT_INTRO_PROSE
-                        : 'relative max-w-2xl pl-2 text-sm leading-relaxed font-medium text-zinc-300 md:text-lg'
+                        : 'relative max-w-2xl pl-2 text-sm leading-relaxed font-medium md:text-lg'
                     }
                   />
                 </div>
               ) : null}
 
               {highlight ? (
-                <div className="vbiz-about-highlight text-base leading-relaxed font-medium text-white md:text-base lg:text-base">
+                <div className="vbiz-about-highlight text-base leading-relaxed font-medium md:text-base lg:text-base">
                   {highlight.title ? (
-                    <span className="vbiz-hero-heading mb-1 block text-xl font-semibold tracking-tight text-white md:mb-1 md:text-xl">
+                    <span className="vbiz-hero-heading mb-1 block text-xl font-semibold tracking-tight md:mb-1 md:text-xl">
                       {highlight.title}
                     </span>
                   ) : null}
                   {highlight.html ? (
                     <div
-                      className="vcard-rich-html text-white [&_p]:mb-0 [&_strong]:font-medium"
+                      className="vcard-rich-html [&_p]:mb-0 [&_strong]:font-medium"
                       dangerouslySetInnerHTML={{ __html: highlight.html }}
                     />
                   ) : highlight.plain ? (
@@ -290,19 +290,15 @@ export const AboutSection = () => {
                     return (
                       <div
                         key={`${pillar.title}-${idx}`}
-                        className="vbiz-hero-card group hover:border-gold/30 flex gap-3 rounded-3xl border border-zinc-200 bg-white p-3 shadow-sm transition-colors md:rounded-xl md:p-3 dark:border-zinc-800/80 dark:bg-[#031327]"
+                        className="vbiz-hero-card vbiz-about-pillar group flex gap-3 rounded-3xl border p-3 shadow-sm transition-colors md:rounded-xl md:p-3"
                       >
                         <div className="vbiz-about-pillar-icon h-9 w-9 rounded-xl p-2 transition-transform duration-300 group-hover:scale-110">
                           <Icon size={16} strokeWidth={2.5} />
                         </div>
                         <div>
-                          <h4 className="mb-1 text-sm font-bold text-zinc-900 md:text-base dark:text-zinc-100">
-                            {pillar.title}
-                          </h4>
+                          <h4 className="mb-1 text-sm font-bold md:text-base">{pillar.title}</h4>
                           {pillar.description ? (
-                            <p className="text-xs leading-snug font-medium text-zinc-500 md:text-sm dark:text-zinc-400">
-                              {pillar.description}
-                            </p>
+                            <p className="text-xs leading-snug font-medium md:text-sm">{pillar.description}</p>
                           ) : null}
                         </div>
                       </div>
@@ -315,14 +311,12 @@ export const AboutSection = () => {
                 <>
                   <div className="relative z-10 flex-1 text-center md:text-left">
                     {footer.headline ? (
-                      <h3 className="vbiz-about-footer vbiz-hero-heading text-md mb-1 font-semibold tracking-tight text-white md:mb-1 md:text-xl lg:text-lg">
+                      <h3 className="vbiz-about-footer vbiz-hero-heading text-md mb-1 font-semibold tracking-tight md:mb-1 md:text-xl lg:text-lg">
                         {footer.headline}
                       </h3>
                     ) : null}
                     {footer.subheadline ? (
-                      <p className="vbiz-about-footer-sub md:text-md text-base font-bold text-zinc-400">
-                        {footer.subheadline}
-                      </p>
+                      <p className="vbiz-about-footer-sub md:text-md text-base font-bold">{footer.subheadline}</p>
                     ) : null}
                   </div>
 
