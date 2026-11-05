@@ -69,8 +69,9 @@ export const PACKAGE_MEDIA_FEATURE_KEYS = [
 
 export type PackageMediaFeatureKey = (typeof PACKAGE_MEDIA_FEATURE_KEYS)[number]
 
-export function musicFileAllowed(can: (key: string) => boolean) {
-  return can('allow_music_upload') && can('allow_bg_music_upload')
+export function musicFileAllowed(_can: (key: string) => boolean) {
+  void _can
+  return true
 }
 
 export function displayMediaAccess(fieldKey: string, can: (key: string) => boolean) {

@@ -1,12 +1,9 @@
 'use client'
 
 import { MediaSourceActions } from '@/components/MediaSourceActions'
-import { PackageFeatureLockNote } from '@/components/PackageFeatureLockNote'
 import { Modal } from '@/components/ui/Modal'
 import { VCardMediaField } from '@/components/vcard/VCardMediaField'
-import { usePackageAccess } from '@/hooks/usePackageAccess'
 import { clearProfileMediaAttachment } from '@/lib/media/clearProfileMediaAttachment'
-import { musicFileAllowed } from '@/lib/packageAccess'
 import { useVCardDisplayEditor } from '@/lib/useVCardDisplayEditor'
 import { useVCard } from '@/lib/VCardContext'
 import { buildYoutubePlayerEmbedUrl, isYoutubeUrl } from '@/lib/youtubeEmbed'
@@ -324,10 +321,6 @@ const FIELD_MUSIC_YT = 'YouTube Background Music Link'
 export function Tab4HomeMedia() {
   const { cardId } = useVCard()
   const { getCustomValue, setCustomValue } = useVCardDisplayEditor()
-  const { can } = usePackageAccess()
-  const canMusicFile = musicFileAllowed(can)
-  const canYtMusic = can('allow_yt_bg_music_upload')
-  const canCanva = can('allow_canva')
 
   const introVideoUrl = getCustomValue(FIELD_INTRO)
   const bgMusicUrl = getCustomValue(FIELD_MUSIC)
@@ -401,19 +394,17 @@ export function Tab4HomeMedia() {
               previewClassName="aspect-video max-h-56"
               emptyIcon={<Video className="h-10 w-10 text-slate-300 dark:text-slate-600" />}
             >
-              {canCanva ? (
-                <MediaSourceActions
-                  mode="video"
-                  compact
-                  className="mt-1"
-                  profileId={profileId}
-                  fieldKey={FIELD_INTRO}
-                  attachmentType={FIELD_INTRO}
-                  designTitle="Intro vCard Video"
-                  showVideoExtras={false}
-                  onSelect={(asset) => setCustomValue(FIELD_INTRO, asset.url)}
-                />
-              ) : null}
+              <MediaSourceActions
+                mode="video"
+                compact
+                className="mt-1"
+                profileId={profileId}
+                fieldKey={FIELD_INTRO}
+                attachmentType={FIELD_INTRO}
+                designTitle="Intro vCard Video"
+                showVideoExtras={false}
+                onSelect={(asset) => setCustomValue(FIELD_INTRO, asset.url)}
+              />
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <button
                   type="button"
@@ -509,8 +500,7 @@ export function Tab4HomeMedia() {
               profileId={profileId}
               attachmentType={FIELD_MUSIC}
               accept="audio/*"
-              locked={!canMusicFile}
-              allowAudio={canMusicFile}
+              allowAudio
               selectPlaceholder="Select audio file"
               subtitle="Plays quietly in the background • no size limit"
               previewKind="audio"
@@ -532,23 +522,19 @@ export function Tab4HomeMedia() {
                     value={musicYoutubeUrl}
                     onChange={(e) => setCustomValue(FIELD_MUSIC_YT, e.target.value)}
                     placeholder="https://youtube.com/..."
-                    disabled={!canYtMusic}
                     className={`${inputClasses} min-w-0 flex-1`}
                   />
                   {musicYoutubeUrl.trim() ? (
                     <button
                       type="button"
                       onClick={() => clearYoutubeLink(FIELD_MUSIC_YT)}
-                      disabled={!canYtMusic}
-                      className="shrink-0 rounded-2xl border border-rose-200 bg-rose-50 px-3 text-[12px] font-bold text-rose-600 disabled:opacity-50 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300"
+                      className="shrink-0 rounded-2xl border border-rose-200 bg-rose-50 px-3 text-[12px] font-bold text-rose-600 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300"
                     >
                       Remove
                     </button>
                   ) : null}
                 </div>
               </FieldGroup>
-              {canYtMusic ? null : <PackageFeatureLockNote />}
-
               {musicYoutubeEmbed ? (
                 <div className="overflow-hidden rounded-2xl border border-slate-200 bg-black dark:border-white/10">
                   <iframe

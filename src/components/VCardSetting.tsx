@@ -20,7 +20,6 @@ import { VCardMediaField } from '@/components/vcard/VCardMediaField'
 import { VCardTemplateDesignPanel } from '@/components/VCardTemplateDesignPanel'
 import { useDashboardTour } from '@/context/DashboardTourContext'
 import { useAppSelector } from '@/hooks/redux'
-import { usePackageAccess } from '@/hooks/usePackageAccess'
 import { cardAgentJson } from '@/lib/ai/cardAgentClient'
 import {
   AI_ASSISTANCE_ADDON_PRICE_USD,
@@ -39,7 +38,6 @@ import {
 import { isCorporateMemberEditorCard } from '@/lib/corporateCardDuplicate'
 import { pushEditorPath } from '@/lib/editorShallowRoute'
 import { isVideoFile, MediaUploadError, uploadMediaWithProgress } from '@/lib/media/uploadMediaWithProgress'
-import { PACKAGE_FEATURE_LOCKED_MESSAGE } from '@/lib/packageAccess'
 import {
   MAX_OWNER_SEO_KEYWORDS,
   MAX_SEO_DESCRIPTION_LENGTH,
@@ -227,10 +225,6 @@ function OptionCard({
       </span>
     </button>
   )
-}
-
-function PackageLockedNote() {
-  return <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">{PACKAGE_FEATURE_LOCKED_MESSAGE}</p>
 }
 
 function ColorPicker({
@@ -969,12 +963,11 @@ function TemplateDesigner() {
 
 function CardIntegrationsPanel() {
   const { user } = useAuth()
-  const { allow_canva: canUseCanva } = usePackageAccess()
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-2 pb-12">
       <SettingSection title="Canva Integration">
-        {canUseCanva ? <CanvaConnectRow userId={user?.uid} variant="status" /> : <PackageLockedNote />}
+        <CanvaConnectRow userId={user?.uid} variant="status" />
       </SettingSection>
       <SettingSection title="AI Assistance">
         <CardAiAssistancePanel />
@@ -1165,7 +1158,6 @@ function SeoGenerateButton({ busy, disabled, onClick }: { busy: boolean; disable
 
 function CardSeoPanel() {
   const { vCardData, updateData, cardId, isCreateMode } = useVCard()
-  const { allow_seo: canUseSeo } = usePackageAccess()
   const seo = normalizeCardSeo(vCardData.seo)
   const seoRef = useRef(seo)
   const [keywordInput, setKeywordInput] = useState('')
@@ -1177,8 +1169,6 @@ function CardSeoPanel() {
   useEffect(() => {
     seoRef.current = seo
   }, [seo])
-
-  if (!canUseSeo) return <PackageLockedNote />
 
   const updateSeo = (patch: Partial<typeof seo>) => {
     const next = normalizeCardSeo({ ...seoRef.current, ...patch })
@@ -1654,7 +1644,8 @@ function AiAgentTrainModal({
 function CardAiAssistancePanel() {
   const { cardId, vCardData, updateData } = useVCard()
   const searchParams = useSearchParams()
-  const { allow_ai_assistance: canUseAiAssistance, isLoading: entitlementsLoading } = usePackageAccess()
+  const canUseAiAssistance = true
+  const entitlementsLoading = false
   const [createAiCheckout, { isLoading: checkoutBusy }] = useCreateAiAssistanceCheckoutMutation()
   const active = isAiAssistanceEnabled(vCardData.aiAssistanceEnabled, vCardData.slug)
   const [showTrain, setShowTrain] = useState(false)
@@ -2029,7 +2020,6 @@ type TabSettingProps = {
 
 export function TabSetting({ basePath, settingsTab = 'general', cardId }: TabSettingProps) {
   const { vCardData, updateData, cardId: contextCardId, isCreateMode } = useVCard()
-  const { allow_seo: canUseSeo } = usePackageAccess()
   const display = getDisplaySettingsFromVCard(vCardData)
   const displayRef = useRef(display)
   useEffect(() => {
@@ -2097,10 +2087,7 @@ export function TabSetting({ basePath, settingsTab = 'general', cardId }: TabSet
       />
     ))
 
-  const visibleSettingTabs = settingTabs.filter((tab) => {
-    if (tab.id === 'seo') return canUseSeo
-    return true
-  })
+  const visibleSettingTabs = settingTabs
 
   const renderContent = () => {
     switch (activeTab) {
