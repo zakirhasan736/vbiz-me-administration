@@ -1,5 +1,6 @@
 'use client'
 
+import { CustomColorPicker } from '@/components/color/CustomColorPicker'
 import { Modal } from '@/components/ui/Modal'
 import {
   ArrowRight,
@@ -277,27 +278,13 @@ export function TabLinkShortener() {
                   <label className="mb-1.5 ml-1 block text-[12px] font-bold text-slate-500 dark:text-slate-400">
                     Foreground
                   </label>
-                  <div className="h-10 w-full overflow-hidden rounded-xl border border-black/10 p-0.5 dark:border-white/10">
-                    <input
-                      type="color"
-                      value={qrFgColor}
-                      onChange={(e) => setQrFgColor(e.target.value)}
-                      className="h-full w-full -translate-y-1 scale-150 transform cursor-pointer border-0 bg-transparent"
-                    />
-                  </div>
+                  <CustomColorPicker label="Foreground" value={qrFgColor} onChange={setQrFgColor} trigger="bar" />
                 </div>
                 <div>
                   <label className="mb-1.5 ml-1 block text-[12px] font-bold text-slate-500 dark:text-slate-400">
                     Background
                   </label>
-                  <div className="h-10 w-full overflow-hidden rounded-xl border border-black/10 p-0.5 dark:border-white/10">
-                    <input
-                      type="color"
-                      value={qrBgColor}
-                      onChange={(e) => setQrBgColor(e.target.value)}
-                      className="h-full w-full -translate-y-1 scale-150 transform cursor-pointer border-0 bg-transparent"
-                    />
-                  </div>
+                  <CustomColorPicker label="Background" value={qrBgColor} onChange={setQrBgColor} trigger="bar" />
                 </div>
               </div>
 
