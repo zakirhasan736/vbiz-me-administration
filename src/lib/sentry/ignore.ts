@@ -31,6 +31,9 @@ const IGNORED_MESSAGE_PATTERNS: RegExp[] = [
   /added by the corporate team owner and cannot be (edited or )?removed/i,
   // Generic card-save toast. The editor already shows it; the rejection has no cause.
   /^failed to save changes$/i,
+  // Role gate from the API. It has no stack or page, so it is an authorization
+  // response that leaked as a rejection, not a crash.
+  /^forbidden access$/i,
   // Safari fires a window error whose message is only this word when a promise
   // rejects. It has no stack or reason, so it is not a diagnosable crash.
   /^unhandledrejection$/i,

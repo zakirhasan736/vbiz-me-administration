@@ -42,6 +42,7 @@ describe('shouldIgnoreSentryMessage', () => {
     ).toBe(true)
     expect(shouldIgnoreSentryMessage('unhandledrejection')).toBe(true)
     expect(shouldIgnoreSentryMessage('Failed to save changes')).toBe(true)
+    expect(shouldIgnoreSentryMessage('FORBIDDEN ACCESS')).toBe(true)
     expect(shouldIgnoreSentryMessage('event:error')).toBe(true)
     expect(shouldIgnoreSentryMessage('No Listener: tabs:outgoing.message.ready')).toBe(true)
     expect(shouldIgnoreSentryMessage('Error: Invalid call to runtime.sendMessage(). Tab not found.')).toBe(true)

@@ -198,6 +198,8 @@ export function usePublicCardsDirectory() {
       if (nextPage >= result.pagination.last_page) {
         setHasLoadedAll(true)
       }
+    } catch {
+      // Keep the cards already shown. unwrap() must not reject the click handler.
     } finally {
       setIsLoadingMore(false)
     }
@@ -259,6 +261,8 @@ export function usePublicCardsDirectory() {
 
         page += 1
       }
+    } catch {
+      // A failed page must not reject the background prefetch.
     } finally {
       if (token === prefetchTokenRef.current) {
         setIsPrefetchingAll(false)
