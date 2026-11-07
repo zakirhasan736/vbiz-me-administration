@@ -5,16 +5,16 @@ import type { MyCardData } from '@interfaces/api/myCard'
 import { cache } from 'react'
 import { enrichMyCardForSharePreview } from './enrichMyCardForSharePreview'
 import {
-  forgetPublicCardBootstrap,
-  recallPublicCardBootstrap,
-  rememberPublicCardBootstrap,
-} from './publicCardBootstrapFallback'
-import {
   logPublicCardFetchFailure,
   PublicCardApiError,
   publicCardApiErrorFromStatus,
   publicCardRequestId,
 } from './publicCardApiError'
+import {
+  forgetPublicCardBootstrap,
+  recallPublicCardBootstrap,
+  rememberPublicCardBootstrap,
+} from './publicCardBootstrapFallback'
 
 export type PublicCardBootstrapPayload = {
   myCard: MyCardData

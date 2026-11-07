@@ -7,11 +7,7 @@ import { mapProfileSettings } from '@/lib/api/profileSettings/mapProfileSettings
 import { resolveLiveAgentPromptFromProfileId } from '@/lib/liveAgent/resolveLiveAgentPrompt'
 import { buildProfileIconPath, buildProfilePath } from '@/lib/profileRoutes'
 import { buildPwaManifestUrl, resolvePwaDisplayName } from '@/lib/pwa/resolvePublicCardPwa'
-import {
-  buildPublicCardCanonicalUrl,
-  buildPublicCardSeoMetadata,
-  resolveRequestOrigin,
-} from '@/lib/seo/publicCardSeo'
+import { buildPublicCardCanonicalUrl, buildPublicCardSeoMetadata, resolveRequestOrigin } from '@/lib/seo/publicCardSeo'
 import { resolvePublicCardFaviconUrl } from '@/lib/seo/resolvePublicCardSeo'
 import PublicProfileLayout from '@/views/PublicProfileLayout'
 import type { Metadata } from 'next'
