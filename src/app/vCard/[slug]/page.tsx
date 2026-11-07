@@ -6,7 +6,11 @@ import { mapProfileSettings } from '@/lib/api/profileSettings/mapProfileSettings
 import { resolveLiveAgentPromptFromProfileId } from '@/lib/liveAgent/resolveLiveAgentPrompt'
 import { buildProfileIconPath, buildProfilePath } from '@/lib/profileRoutes'
 import { buildPwaManifestUrl, resolvePwaDisplayName } from '@/lib/pwa/resolvePublicCardPwa'
-import { buildPublicCardSeoMetadata, resolveRequestOrigin } from '@/lib/seo/publicCardSeo'
+import {
+  buildPublicCardCanonicalUrl,
+  buildPublicCardSeoMetadata,
+  resolveRequestOrigin,
+} from '@/lib/seo/publicCardSeo'
 import { resolvePublicCardFaviconUrl } from '@/lib/seo/resolvePublicCardSeo'
 import PublicProfileLayout from '@/views/PublicProfileLayout'
 import type { Metadata } from 'next'
@@ -74,7 +78,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 
   if (!myCard) {
-    return { title: name, description: `${name}'s digital business card`, ...pwaMeta }
+    // Worst case (API down and no cached copy): still declare the canonical URL so crawlers
+    // never treat this temporary shell as a separate or duplicate page.
+    return {
+      title: name,
+      description: `${name}'s digital business card`,
+      ...pwaMeta,
+      alternates: { canonical: buildPublicCardCanonicalUrl(requestOrigin, buildProfilePath(trimmed)) },
+    }
   }
 
   const seo = buildPublicCardSeoMetadata({
