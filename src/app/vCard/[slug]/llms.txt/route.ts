@@ -38,7 +38,9 @@ export async function GET(request: Request, { params }: Props) {
     headers: {
       'Content-Type': 'text/markdown; charset=utf-8',
       'Cache-Control': 'public, max-age=3600',
-      'X-Robots-Tag': 'index, follow',
+      // AI tools still read this file; noindex only stops Google from listing it as a second,
+      // duplicate copy of the card that competes with the real /vCard/{slug} page.
+      'X-Robots-Tag': 'noindex',
     },
   })
 }

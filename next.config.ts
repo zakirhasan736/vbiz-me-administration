@@ -45,15 +45,33 @@ const nextConfig: NextConfig = {
       },
       {
         source: '/vCard/:slug/manifest.webmanifest',
-        headers: [{ key: 'Content-Type', value: 'application/manifest+json' }],
+        headers: [
+          { key: 'Content-Type', value: 'application/manifest+json' },
+          // Supporting files are not pages; keep them out of Google's index and Search Console reports.
+          { key: 'X-Robots-Tag', value: 'noindex' },
+        ],
+      },
+      {
+        source: '/vCard/:slug/icon/:size',
+        headers: [{ key: 'X-Robots-Tag', value: 'noindex' }],
+      },
+      {
+        source: '/vCard/:slug/wallet-art',
+        headers: [{ key: 'X-Robots-Tag', value: 'noindex' }],
       },
     ]
   },
   async redirects() {
     return [
+      // Bare /v used to fall through `:slug*` to an empty /vCard and 404 in Search Console.
       {
-        source: '/v/:slug*',
-        destination: '/vCard/:slug*',
+        source: '/v',
+        destination: '/',
+        permanent: true,
+      },
+      {
+        source: '/v/:slug+',
+        destination: '/vCard/:slug+',
         permanent: true,
       },
     ]
