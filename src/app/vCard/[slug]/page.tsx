@@ -1,5 +1,6 @@
 import { AI_ASSISTANCE_SETTING_KEY, isAiAssistanceEnabled } from '@/lib/aiAssistance'
 import { fetchPublicCardBootstrap } from '@/lib/api/myCard/fetchPublicCardBootstrap'
+import { fetchPublicCardSlugRedirect } from '@/lib/api/myCard/fetchPublicCardSlugRedirect'
 import { PublicCardApiError } from '@/lib/api/myCard/publicCardApiError'
 import { resolveProfileTemplateFromMyCard } from '@/lib/api/myCard/resolveProfileTemplate'
 import { mapProfileSettings } from '@/lib/api/profileSettings/mapProfileSettings'
@@ -15,7 +16,7 @@ import { resolvePublicCardFaviconUrl } from '@/lib/seo/resolvePublicCardSeo'
 import PublicProfileLayout from '@/views/PublicProfileLayout'
 import type { Metadata } from 'next'
 import { headers } from 'next/headers'
-import { notFound } from 'next/navigation'
+import { notFound, permanentRedirect } from 'next/navigation'
 
 type Props = {
   params: Promise<{ slug: string }>
@@ -119,8 +120,14 @@ export default async function PublicProfilePage({ params }: Props) {
 
   const { bootstrap, softFail } = await loadBootstrapSafe(trimmed)
 
-  // Definite miss from API — real 404. Soft fail = SSR couldn't reach API; client will load.
+  // Definite miss from API. A renamed card's old address 308s to the new one (Google treats it
+  // like a 301 and moves the page over); anything else is a real 404.
+  // permanentRedirect/notFound throw, so they must stay outside try/catch.
   if (!bootstrap?.myCard && !softFail) {
+    const renamedTo = await fetchPublicCardSlugRedirect(trimmed)
+    if (renamedTo) {
+      permanentRedirect(buildProfilePath(renamedTo))
+    }
     notFound()
   }
 
