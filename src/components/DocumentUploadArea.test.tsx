@@ -44,7 +44,13 @@ describe('DocumentUploadArea image URL paste', () => {
 
   it('adds a pasted image link to the gallery', () => {
     const onChange = vi.fn<(files: UploadedDoc[]) => void>()
-    const existing: UploadedDoc = { id: 'a', name: 'a.jpg', url: 'https://cdn.example.com/a.jpg', type: 'image/jpeg', size: 1 }
+    const existing: UploadedDoc = {
+      id: 'a',
+      name: 'a.jpg',
+      url: 'https://cdn.example.com/a.jpg',
+      type: 'image/jpeg',
+      size: 1,
+    }
     const host = render(<DocumentUploadArea files={[existing]} onChange={onChange} urlPaste />)
     pasteAndEnter(host, 'https://images.unsplash.com/photo-1550684848-fac1c5b4e853?w=1200')
     const next = onChange.mock.calls[0]?.[0]
@@ -58,7 +64,13 @@ describe('DocumentUploadArea image URL paste', () => {
 
   it('rejects video links and duplicates', () => {
     const onChange = vi.fn()
-    const existing: UploadedDoc = { id: 'a', name: 'a.jpg', url: 'https://cdn.example.com/a.jpg', type: 'image/jpeg', size: 1 }
+    const existing: UploadedDoc = {
+      id: 'a',
+      name: 'a.jpg',
+      url: 'https://cdn.example.com/a.jpg',
+      type: 'image/jpeg',
+      size: 1,
+    }
     const host = render(<DocumentUploadArea files={[existing]} onChange={onChange} urlPaste />)
     pasteAndEnter(host, 'https://cdn.example.com/intro.mp4')
     expect(host.textContent).toContain('This field needs an image URL.')

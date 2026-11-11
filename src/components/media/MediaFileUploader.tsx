@@ -2,12 +2,6 @@
 
 import { SkeletonImage, SkeletonVideo } from '@/components/media/SkeletonMedia'
 import { AvatarMediaFramePreview } from '@/components/vcard/AvatarMediaFramePreview'
-import type { ProfileMediaFrame } from '@/lib/media/profileMediaFrame'
-import {
-  mediaNeedsClientOptimize,
-  MediaUploadError,
-  uploadMediaWithProgress,
-} from '@/lib/media/uploadMediaWithProgress'
 import {
   allowedKindsFromAccept,
   classifyPastedMediaUrl,
@@ -15,6 +9,12 @@ import {
   resolveEmbedVideoUrl,
   validatePastedMediaUrl,
 } from '@/lib/media/pastedMediaUrl'
+import type { ProfileMediaFrame } from '@/lib/media/profileMediaFrame'
+import {
+  mediaNeedsClientOptimize,
+  MediaUploadError,
+  uploadMediaWithProgress,
+} from '@/lib/media/uploadMediaWithProgress'
 import { isVideoUrl } from '@/lib/mediaUrl'
 import { cn } from '@/utils/cn'
 import { FileAudio, FileIcon, FileText, FileVideo, Image as ImageIcon, Loader2, Trash2, Upload, X } from 'lucide-react'

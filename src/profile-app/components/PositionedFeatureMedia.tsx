@@ -1,5 +1,6 @@
 'use client'
 
+import { resolveEmbedVideoUrl } from '@/lib/media/pastedMediaUrl'
 import {
   parseProfileMediaFrame,
   profileFeatureMediaAspectRatio,
@@ -8,7 +9,6 @@ import {
   type MediaPixelSize,
   type ProfileMediaFrame,
 } from '@/lib/media/profileMediaFrame'
-import { resolveEmbedVideoUrl } from '@/lib/media/pastedMediaUrl'
 import { isVideoUrl } from '@/lib/mediaUrl'
 import { FeatureMediaEmbed } from '@/profile-app/components/FeatureMediaEmbed'
 import { useEffect, useRef, useState } from 'react'

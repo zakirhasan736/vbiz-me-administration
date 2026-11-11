@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { detectGalleryMediaKind, detectPortfolioType, isAudioUrl, isDocumentUrl, isImageUrl, isVideoUrl } from './mediaUrl'
+import {
+  detectGalleryMediaKind,
+  detectPortfolioType,
+  isAudioUrl,
+  isDocumentUrl,
+  isImageUrl,
+  isVideoUrl,
+} from './mediaUrl'
 
 describe('isVideoUrl', () => {
   it('treats uploaded files and Cloudinary video paths as video', () => {

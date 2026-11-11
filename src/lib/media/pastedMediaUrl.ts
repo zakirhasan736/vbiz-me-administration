@@ -85,7 +85,8 @@ export function allowedKindsFromAccept(accept: string | undefined | null): Allow
     video: has('video', /^\.(mp4|webm|mov|m4v|ogv)$/),
     audio: has('audio', /^\.(mp3|wav|m4a|aac|flac)$/),
     document: tokens.some(
-      (t) => t === 'application/pdf' || t.startsWith('application/') || /^\.(pdf|docx?|pptx?|xlsx?|txt|rtf|zip)$/.test(t)
+      (t) =>
+        t === 'application/pdf' || t.startsWith('application/') || /^\.(pdf|docx?|pptx?|xlsx?|txt|rtf|zip)$/.test(t)
     ),
   }
 }
