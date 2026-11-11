@@ -122,7 +122,7 @@ export default async function PublicCardVideoPage({ params }: Props) {
         <span>Intro video</span>
       </nav>
 
-      <h1 className="text-2xl font-semibold leading-tight sm:text-3xl">{page.title}</h1>
+      <h1 className="text-2xl leading-tight font-semibold sm:text-3xl">{page.title}</h1>
 
       <div className="overflow-hidden rounded-2xl bg-black">
         {page.video.kind === 'file' ? (

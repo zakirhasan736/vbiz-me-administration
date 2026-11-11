@@ -1,7 +1,7 @@
 import type { MyCardData } from '@/interfaces/api/myCard'
 import { buildProfilePath } from '@/lib/profileRoutes'
-import { buildPublicCardJsonLdGraph, serializeJsonLd } from '@/lib/seo/publicCardSeo'
 import { resolveCardIntroVideoUrl } from '@/lib/seo/loadPublicCardVideoPage'
+import { buildPublicCardJsonLdGraph, serializeJsonLd } from '@/lib/seo/publicCardSeo'
 import { assemblePublicCardSource } from '@/lib/seo/publicCardSource'
 import { buildPublicCardVideoPath, resolveIntroVideo } from '@/lib/seo/publicCardVideo'
 

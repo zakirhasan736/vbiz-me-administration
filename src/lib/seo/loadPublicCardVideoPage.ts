@@ -1,12 +1,7 @@
 import { fetchPublicCardBootstrap } from '@/lib/api/myCard/fetchPublicCardBootstrap'
 import { mapMyCardToVCardData } from '@/lib/api/myCard/mapMyCard'
 import { buildProfilePath } from '@/lib/profileRoutes'
-import { getHomeMediaUrls, resolveDisplaySettings } from '@/lib/vcardDisplaySettings'
-import {
-  buildPublicCardCanonicalUrl,
-  isPublicCardIndexable,
-  resolvePublicCardImageUrl,
-} from '@/lib/seo/publicCardSeo'
+import { buildPublicCardCanonicalUrl, isPublicCardIndexable, resolvePublicCardImageUrl } from '@/lib/seo/publicCardSeo'
 import { assemblePublicCardSource } from '@/lib/seo/publicCardSource'
 import {
   buildPublicCardVideoPath,
@@ -15,6 +10,7 @@ import {
   uploadDateFromMediaUrl,
   type PublicCardIntroVideo,
 } from '@/lib/seo/publicCardVideo'
+import { getHomeMediaUrls, resolveDisplaySettings } from '@/lib/vcardDisplaySettings'
 
 export type PublicCardVideoPage = {
   slug: string
