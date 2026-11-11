@@ -1,0 +1,81 @@
+import { MediaFileUploader, type MediaUploadResult } from '@/components/media/MediaFileUploader'
+import { act, type ReactNode } from 'react'
+import { createRoot, type Root } from 'react-dom/client'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+
+const mounted: Array<{ root: Root; host: HTMLElement }> = []
+
+function render(node: ReactNode): HTMLElement {
+  const host = document.createElement('div')
+  document.body.appendChild(host)
+  const root = createRoot(host)
+  act(() => root.render(node))
+  mounted.push({ root, host })
+  return host
+}
+
+afterEach(() => {
+  for (const { root, host } of mounted.splice(0)) {
+    act(() => root.unmount())
+    host.remove()
+  }
+})
+
+/** Type into a React-controlled input and press Enter. */
+function pasteAndEnter(host: HTMLElement, text: string) {
+  const input = host.querySelector<HTMLInputElement>('input[type="url"]')
+  if (!input) throw new Error('URL input not rendered')
+  const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!
+  act(() => {
+    setValue.call(input, text)
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+  })
+  act(() => {
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+  })
+}
+
+describe('MediaFileUploader paste URL', () => {
+  it('applies a pasted image URL on Enter', () => {
+    const onChange = vi.fn<(next: MediaUploadResult | null) => void>()
+    const host = render(<MediaFileUploader onChange={onChange} accept="image/*,video/*" />)
+    pasteAndEnter(host, 'https://cdn.example.com/team.jpg')
+    expect(onChange).toHaveBeenCalledWith({ url: 'https://cdn.example.com/team.jpg', fileName: 'team.jpg' })
+  })
+
+  it('accepts a YouTube link in an image-or-video field', () => {
+    const onChange = vi.fn()
+    const host = render(<MediaFileUploader onChange={onChange} accept="image/*,video/*" />)
+    pasteAndEnter(host, 'https://youtu.be/GghZCyc_fnU')
+    expect(onChange).toHaveBeenCalledTimes(1)
+  })
+
+  it('rejects text that is not a link', () => {
+    const onChange = vi.fn()
+    const host = render(<MediaFileUploader onChange={onChange} accept="image/*" />)
+    pasteAndEnter(host, 'my photo')
+    expect(onChange).not.toHaveBeenCalled()
+    expect(host.textContent).toContain('Paste a full link that starts with https://')
+  })
+
+  it('rejects a video link in an image-only field', () => {
+    const onChange = vi.fn()
+    const host = render(<MediaFileUploader onChange={onChange} accept="image/*" />)
+    pasteAndEnter(host, 'https://cdn.example.com/intro.mp4')
+    expect(onChange).not.toHaveBeenCalled()
+    expect(host.textContent).toContain('This field needs an image URL.')
+  })
+
+  it('previews a pasted YouTube link as a player and an extensionless image as an image', () => {
+    const yt = render(
+      <MediaFileUploader onChange={vi.fn()} accept="image/*,video/*" value="https://youtu.be/GghZCyc_fnU" />
+    )
+    expect(yt.querySelector('iframe')?.getAttribute('src')).toBe('https://www.youtube.com/embed/GghZCyc_fnU')
+
+    const img = render(
+      <MediaFileUploader onChange={vi.fn()} accept="image/*" value="https://lh3.googleusercontent.com/abc123" />
+    )
+    expect(img.textContent?.toLowerCase()).toContain('image')
+    expect(img.querySelector('iframe')).toBeNull()
+  })
+})

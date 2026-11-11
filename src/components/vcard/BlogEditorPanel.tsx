@@ -271,7 +271,6 @@ export function BlogEditorPanel({ posts: rawPosts, onPostsChange, profileId }: B
                             profileId={profileId}
                             attachmentType="Blog Featured"
                             accept="image/*,video/*"
-                            allowUrlPaste={false}
                             hint="Upload an image or video - preview appears below"
                             value={item.featuredImage}
                             mediaFrame={item.mediaFrame}

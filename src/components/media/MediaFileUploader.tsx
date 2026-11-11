@@ -8,7 +8,14 @@ import {
   MediaUploadError,
   uploadMediaWithProgress,
 } from '@/lib/media/uploadMediaWithProgress'
-import { isAudioUrl, isVideoUrl } from '@/lib/mediaUrl'
+import {
+  allowedKindsFromAccept,
+  classifyPastedMediaUrl,
+  normalizePastedMediaUrl,
+  resolveEmbedVideoUrl,
+  validatePastedMediaUrl,
+} from '@/lib/media/pastedMediaUrl'
+import { isVideoUrl } from '@/lib/mediaUrl'
 import { cn } from '@/utils/cn'
 import { FileAudio, FileIcon, FileText, FileVideo, Image as ImageIcon, Loader2, Trash2, Upload, X } from 'lucide-react'
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
@@ -147,8 +154,20 @@ function isAudioFile(file: File): boolean {
   return /\.(mp3|wav|ogg|m4a|aac|flac)$/i.test(file.name)
 }
 
-function guessKind(url: string, mimeType?: string | null, fileName?: string | null) {
+function guessKind(
+  url: string,
+  mimeType?: string | null,
+  fileName?: string | null,
+  /** A pasted link with no recognizable extension is shown as an image when the field accepts images. */
+  unknownAsImage = false
+) {
   const mime = (mimeType || '').toLowerCase()
+  if (!mime) {
+    const pasted = classifyPastedMediaUrl(url)
+    if (pasted === 'embed') return 'embed'
+    if (pasted === 'image') return 'image'
+    if (pasted === 'unknown' && unknownAsImage && /^https?:\/\//i.test(url.trim())) return 'image'
+  }
   const name = (fileName || url.split('?')[0] || '').toLowerCase()
   const haystack = `${url} ${name}`.toLowerCase()
   if (
@@ -206,10 +225,12 @@ export function MediaFileUploader({
   const displayUrl = localPreview || savedUrl
   const displayName = fileName || (savedUrl ? savedUrl.split('/').pop()?.split('?')[0] : '') || ''
   const uploadLabel = uploadStage === 'preparing' ? 'Optimizing…' : 'Uploading…'
+  const acceptsImages = allowedKindsFromAccept(accept).image
   const kind = useMemo(
-    () => (displayUrl ? guessKind(displayUrl, localMime, displayName) : null),
-    [displayUrl, localMime, displayName]
+    () => (displayUrl ? guessKind(displayUrl, localMime, displayName, acceptsImages) : null),
+    [displayUrl, localMime, displayName, acceptsImages]
   )
+  const embedUrl = kind === 'embed' ? resolveEmbedVideoUrl(displayUrl) : null
 
   useEffect(() => {
     return () => {
@@ -324,18 +345,21 @@ export function MediaFileUploader({
   }
 
   const applyUrl = () => {
-    const next = urlDraft.trim()
-    if (!next) return
-
-    if (videoOnly) {
-      if (isLikelyImageUrl(next) || !isVideoUrl(next)) {
-        setError('Only video URLs are allowed for this field.')
-        return
-      }
+    const next = normalizePastedMediaUrl(urlDraft)
+    if (!next) {
+      setError('Paste a full link that starts with https://')
+      return
     }
 
-    if (!acceptAllowsAudio(accept) && isAudioUrl(next)) {
-      setError('Audio URLs are not allowed for this field.')
+    if (videoOnly && (isLikelyImageUrl(next) || !isVideoUrl(next))) {
+      setError('Only video URLs are allowed for this field.')
+      return
+    }
+
+    // Same file types the upload button accepts (e.g. an image-only field rejects video links).
+    const typeError = validatePastedMediaUrl(next, allowedKindsFromAccept(accept))
+    if (typeError) {
+      setError(typeError)
       return
     }
 
@@ -419,6 +443,15 @@ export function MediaFileUploader({
                     muted
                     playsInline
                     skeletonLabel="Loading preview"
+                  />
+                ) : kind === 'embed' && embedUrl ? (
+                  <iframe
+                    src={embedUrl}
+                    title={displayName || 'Video preview'}
+                    className="absolute inset-0 h-full w-full"
+                    allow="accelerometer; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                    loading="lazy"
                   />
                 ) : kind === 'audio' ? (
                   <div className="flex w-full flex-col items-center gap-2 px-3">
@@ -545,9 +578,26 @@ export function MediaFileUploader({
         <div className="flex gap-2">
           <input
             type="url"
+            inputMode="url"
             value={urlDraft}
-            onChange={(e) => setUrlDraft(e.target.value)}
-            placeholder={videoOnly ? 'Or paste a video URL' : 'Or paste a media URL'}
+            onChange={(e) => {
+              setUrlDraft(e.target.value)
+              if (error) setError(null)
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                applyUrl()
+              }
+            }}
+            aria-label={videoOnly ? 'Paste a video URL' : 'Paste a media URL'}
+            placeholder={
+              videoOnly
+                ? 'Or paste a video URL (YouTube, Vimeo, .mp4)'
+                : acceptsImages && !allowedKindsFromAccept(accept).video
+                  ? 'Or paste an image URL'
+                  : 'Or paste an image or video URL'
+            }
             disabled={disabled || uploading}
             className={cn(
               'w-full rounded-2xl border border-slate-200/80 bg-white px-4 py-3 text-[13px] font-medium text-slate-900 shadow-sm transition-all outline-none dark:border-white/10 dark:bg-[#0b0f19] dark:text-white',

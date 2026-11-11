@@ -759,7 +759,6 @@ function AboutMeDraftQuickFill({
           profileId={profileId}
           attachmentType="About Me Featured"
           accept="image/*,video/*"
-          allowUrlPaste={false}
           hint="Upload an image or a video. The public About Me section shows this same file."
           value={featuredMediaUrl}
           onChange={(next) => commit(next?.url || '')}
