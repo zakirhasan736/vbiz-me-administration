@@ -1,5 +1,6 @@
 'use client'
 
+import { AiDropFillZone, type AiFilledResult } from '@/components/AiDropFillZone'
 import { DocumentUploadArea } from '@/components/DocumentUploadArea'
 import { RichTextEditor } from '@/components/editor/RichTextEditor'
 import { ReorderList } from '@/components/ReorderList'
@@ -23,6 +24,7 @@ import {
   sectionPostsToCertItems,
   type CertItem,
 } from '@/lib/vcardCertificates'
+import { entriesToCerts, mapEntriesFromPayload } from '@/lib/ai/genericTabFill'
 import { useVCard } from '@/lib/VCardContext'
 import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
 import { cn } from '@/utils/cn'
@@ -71,6 +73,17 @@ export function TabCertificates() {
   useEffect(() => {
     itemsRef.current = items
   }, [items])
+
+  /** AI Auto-fill: one credential per certificate/license found in the paste or file. */
+  const applyAiFill = (result: AiFilledResult) => {
+    const created = entriesToCerts(mapEntriesFromPayload(result.payload))
+    if (!created.length) return
+    const kept = visibleItems.filter(
+      (cert) => cert.corporateOwned || cert.name.trim() || cert.issuer.trim() || cert.documents.length
+    )
+    commitVisible([...kept, ...created])
+    expandNew(created[0]!.id)
+  }
 
   const addCert = () => {
     const next = createEmptyCert()
@@ -124,6 +137,22 @@ export function TabCertificates() {
           <Plus className="h-4 w-4" /> Add certificate
         </button>
       </div>
+
+      <AiDropFillZone
+        section="entries"
+        profileId={cardId}
+        context={{ tabName: sectionTitle || 'Certificates', fields: ['title', 'subtitle', 'description', 'date'] }}
+        currentDraft={{
+          certificates: visibleItems.map((cert) => ({
+            name: cert.name,
+            issuer: cert.issuer,
+            year: cert.year,
+            description: cert.description,
+          })),
+        }}
+        hint="Drop a resume or paste your credentials — AI creates one certificate per entry (name, issuer, year)"
+        onFilled={applyAiFill}
+      />
 
       {visibleItems.length === 0 ? (
         <div className="rounded-[28px] border border-slate-200/60 bg-slate-50/50 p-10 text-center dark:border-white/5 dark:bg-white/2">

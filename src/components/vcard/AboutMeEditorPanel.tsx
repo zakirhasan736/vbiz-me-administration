@@ -1,5 +1,6 @@
 'use client'
 
+import { AiDropFillZone, type AiFilledResult } from '@/components/AiDropFillZone'
 import { RichTextEditor } from '@/components/editor/RichTextEditor'
 import { MediaFileUploader } from '@/components/media/MediaFileUploader'
 import { MediaSourceActions } from '@/components/MediaSourceActions'
@@ -13,6 +14,7 @@ import {
   type AboutMeDraft,
 } from '@/lib/aboutMeDraft'
 import { flushAboutMeUpsert } from '@/lib/aboutMePersist'
+import { mapContentFromPayload } from '@/lib/ai/genericTabFill'
 import { peekCanvaReadyImport } from '@/lib/canva/editHandoff'
 import { TAB_REGISTRY } from '@/lib/tabRegistry'
 import { useVCard } from '@/lib/VCardContext'
@@ -91,6 +93,16 @@ export function AboutMeEditorPanel({ cardId }: AboutMeEditorPanelProps) {
 
   const tabLabel = useResolvedSectionTitle(undefined, TAB_REGISTRY.about_me.label)
 
+  /** AI Auto-fill: About Me is one block — fill the title and the full description. */
+  const applyAiFill = (result: AiFilledResult) => {
+    const content = mapContentFromPayload(result.payload)
+    if (!content) return
+    update({
+      ...(content.title ? { title: content.title } : {}),
+      ...(content.description ? { descriptionHtml: content.description } : {}),
+    })
+  }
+
   return (
     <div className="animate-in fade-in mx-auto flex h-full w-full max-w-7xl flex-col space-y-6 pb-12 duration-500">
       <div className="rounded-3xl border border-violet-100 bg-violet-50/50 p-6 dark:border-violet-500/10 dark:bg-violet-500/2">
@@ -100,6 +112,16 @@ export function AboutMeEditorPanel({ cardId }: AboutMeEditorPanelProps) {
           the rich description. Featured media can be an image or a video — the public card shows the same file.
         </p>
       </div>
+
+      <AiDropFillZone
+        section="content"
+        profileId={cardId}
+        context={{ tabName: tabLabel || 'About Me', fields: ['title', 'description'] }}
+        currentDraft={{ aboutMe: { title: draft.title, description: draft.descriptionHtml } }}
+        accent="violet"
+        hint="Drop a document or paste your story — AI fills the About Me title and full description"
+        onFilled={applyAiFill}
+      />
 
       <section className="overflow-hidden rounded-4xl border border-slate-200/50 bg-slate-50/50 shadow-sm dark:border-white/5 dark:bg-white/2">
         <div className="flex items-center gap-4 border-b border-slate-200/50 px-4 py-6 sm:px-8 dark:border-white/5">

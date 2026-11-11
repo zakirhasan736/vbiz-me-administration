@@ -1,7 +1,9 @@
 'use client'
 
 import { RichTextEditor } from '@/components/editor/RichTextEditor'
+import { AiDropFillZone, type AiFilledResult } from '@/components/AiDropFillZone'
 import { SectionJumpPills } from '@/components/SectionJumpPills'
+import { mapExperienceFromPayload } from '@/lib/ai/genericTabFill'
 import { CorporateOwnerContentView } from '@/components/vcard/CorporateOwnerContentView'
 import {
   ExpandableEntryBody,
@@ -34,7 +36,7 @@ const accent = {
 
 export function TabExperience() {
   const sectionTitle = useResolvedSectionTitle(undefined, 'Experience')
-  const { vCardData, updateData } = useVCard()
+  const { cardId, vCardData, updateData } = useVCard()
   const experiences = normalizeExperienceList(vCardData.experience)
   const setExperiences = (next: VCardExperienceEntry[]) => {
     updateData('experience', next)
@@ -46,6 +48,17 @@ export function TabExperience() {
   )
   const { isExpanded, toggleExpanded, expandNew, recoverExpandedAfterRemove, setCardRef, setExpandedId } =
     useExpandableEntryList(visibleItems)
+
+  /** AI Auto-fill: one experience entry per role found; drops the blank starter row. */
+  const applyAiFill = (result: AiFilledResult) => {
+    const created = mapExperienceFromPayload(result.payload)
+    if (!created.length) return
+    const kept = visibleItems.filter(
+      (exp) => exp.corporateOwned || exp.company.trim() || exp.jobTitle.trim() || exp.description.trim()
+    )
+    commitVisible([...kept, ...created])
+    expandNew(created[0]!.id)
+  }
 
   const addExperience = () => {
     const next = createDefaultExperienceEntry()
@@ -104,6 +117,14 @@ export function TabExperience() {
           <Plus className="h-4 w-4" /> Add Experience
         </button>
       </div>
+
+      <AiDropFillZone
+        section="experience"
+        profileId={cardId}
+        currentDraft={{ experience: visibleItems }}
+        hint="Drop a resume or paste your work history — AI creates one entry per role"
+        onFilled={applyAiFill}
+      />
 
       <SectionJumpPills
         accent="orange"

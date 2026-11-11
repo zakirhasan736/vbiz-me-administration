@@ -126,11 +126,14 @@ export function buildAssistantSectionForm(
   section: string,
   businessText: string,
   files: File[],
-  bodyMode: TabFillBodyMode = 'as_written'
+  bodyMode: TabFillBodyMode = 'as_written',
+  /** `{ tabName, fields }` for the generic "entries" / "content" sections. */
+  context?: { tabName: string; fields?: string[] }
 ): FormData {
   const form = new FormData()
   form.set('section', section)
   form.set('bodyMode', bodyMode)
+  if (context?.tabName?.trim()) form.set('context', JSON.stringify(context))
   if (businessText.trim()) {
     form.set('businessText', businessText.trim())
     form.set('text', businessText.trim())
@@ -148,8 +151,9 @@ export async function fillAssistantSection<T>(
   section: string,
   businessText: string,
   files: File[],
-  bodyMode: TabFillBodyMode = 'as_written'
+  bodyMode: TabFillBodyMode = 'as_written',
+  context?: { tabName: string; fields?: string[] }
 ): Promise<T> {
-  const form = buildAssistantSectionForm(section, businessText, files, bodyMode)
+  const form = buildAssistantSectionForm(section, businessText, files, bodyMode, context)
   return assistantRequest<T>(assistantProfilePath(profileId, 'fill-section'), { method: 'POST', body: form })
 }

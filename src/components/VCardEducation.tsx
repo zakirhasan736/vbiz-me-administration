@@ -1,6 +1,8 @@
 'use client'
 
+import { AiDropFillZone, type AiFilledResult } from '@/components/AiDropFillZone'
 import { SectionJumpPills } from '@/components/SectionJumpPills'
+import { mapEducationFromPayload } from '@/lib/ai/genericTabFill'
 import { CorporateOwnerContentView } from '@/components/vcard/CorporateOwnerContentView'
 import {
   ExpandableEntryBody,
@@ -32,7 +34,7 @@ const accent = {
 
 export function TabEducation() {
   const sectionTitle = useResolvedSectionTitle(undefined, 'Education')
-  const { vCardData, updateData } = useVCard()
+  const { cardId, vCardData, updateData } = useVCard()
   const educations = normalizeEducationList(vCardData.education)
   const setEducations = (next: VCardEducationEntry[]) => {
     updateData('education', next)
@@ -44,6 +46,15 @@ export function TabEducation() {
   )
   const { isExpanded, toggleExpanded, expandNew, recoverExpandedAfterRemove, setCardRef, setExpandedId } =
     useExpandableEntryList(visibleItems)
+
+  /** AI Auto-fill: one education entry per school/degree found; drops the blank starter row. */
+  const applyAiFill = (result: AiFilledResult) => {
+    const created = mapEducationFromPayload(result.payload)
+    if (!created.length) return
+    const kept = visibleItems.filter((edu) => edu.corporateOwned || edu.institute.trim() || edu.degree.trim())
+    commitVisible([...kept, ...created])
+    expandNew(created[0]!.id)
+  }
 
   const addEducation = () => {
     const next = createDefaultEducationEntry()
@@ -102,6 +113,14 @@ export function TabEducation() {
           <Plus className="h-4 w-4" /> Add Education
         </button>
       </div>
+
+      <AiDropFillZone
+        section="education"
+        profileId={cardId}
+        currentDraft={{ education: visibleItems }}
+        hint="Drop a resume or paste your education — AI creates one entry per school or degree"
+        onFilled={applyAiFill}
+      />
 
       <SectionJumpPills
         accent="cyan"

@@ -1,6 +1,8 @@
 'use client'
 
+import { AiDropFillZone, type AiFilledResult } from '@/components/AiDropFillZone'
 import { SectionJumpPills } from '@/components/SectionJumpPills'
+import { mapSkillsFromPayload } from '@/lib/ai/genericTabFill'
 import { CorporateOwnerContentView } from '@/components/vcard/CorporateOwnerContentView'
 import {
   ExpandableEntryBody,
@@ -30,7 +32,7 @@ const accent = {
 
 export function TabSkill() {
   const sectionTitle = useResolvedSectionTitle(undefined, 'Skills')
-  const { vCardData, updateData } = useVCard()
+  const { cardId, vCardData, updateData } = useVCard()
   const skillGroups = normalizeSkillGroups(vCardData.skills)
   const skillGroupsRef = useRef(skillGroups)
   const [inputValues, setInputValues] = React.useState<Record<string, string>>({})
@@ -68,6 +70,16 @@ export function TabSkill() {
       return next
     }
     return groups
+  }
+
+  /** AI Auto-fill: skill groups from a paste (never capped); skips skills already listed. */
+  const applyAiFill = (result: AiFilledResult) => {
+    const current = commitPendingInputs()
+    const created = mapSkillsFromPayload(result.payload, current)
+    if (!created.length) return
+    const kept = current.filter((grp) => grp.corporateOwned || grp.type.trim() || grp.skills.length)
+    setSkillGroups([...kept, ...created])
+    expandNew(created[0]!.id)
   }
 
   const addSkillGroup = () => {
@@ -162,6 +174,14 @@ export function TabSkill() {
           <Plus className="h-4 w-4" /> Add Category
         </button>
       </div>
+
+      <AiDropFillZone
+        section="skills"
+        profileId={cardId}
+        currentDraft={{ skills: skillGroups }}
+        hint="Drop a resume or paste a skills list — AI groups the skills by category"
+        onFilled={applyAiFill}
+      />
 
       <SectionJumpPills
         accent="purple"
