@@ -1,9 +1,8 @@
 'use client'
 
-import { RichTextEditor } from '@/components/editor/RichTextEditor'
 import { AiDropFillZone, type AiFilledResult } from '@/components/AiDropFillZone'
+import { RichTextEditor } from '@/components/editor/RichTextEditor'
 import { SectionJumpPills } from '@/components/SectionJumpPills'
-import { mapExperienceFromPayload } from '@/lib/ai/genericTabFill'
 import { CorporateOwnerContentView } from '@/components/vcard/CorporateOwnerContentView'
 import {
   ExpandableEntryBody,
@@ -15,6 +14,7 @@ import { HideOwnerMediaToggle } from '@/components/vcard/HideOwnerMediaToggle'
 import { VCardDateInput } from '@/components/vcard/VCardDateInput'
 import { useExpandableEntryList } from '@/hooks/useExpandableEntryList'
 import { useHideOwnerSectionList } from '@/hooks/useHideOwnerSectionList'
+import { mapExperienceFromPayload } from '@/lib/ai/genericTabFill'
 import { stripHtml } from '@/lib/htmlText'
 import { useVCard } from '@/lib/VCardContext'
 import { createDefaultExperienceEntry, normalizeExperienceList } from '@/lib/vcardExperience'

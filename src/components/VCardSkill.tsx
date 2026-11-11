@@ -2,7 +2,6 @@
 
 import { AiDropFillZone, type AiFilledResult } from '@/components/AiDropFillZone'
 import { SectionJumpPills } from '@/components/SectionJumpPills'
-import { mapSkillsFromPayload } from '@/lib/ai/genericTabFill'
 import { CorporateOwnerContentView } from '@/components/vcard/CorporateOwnerContentView'
 import {
   ExpandableEntryBody,
@@ -11,6 +10,7 @@ import {
   expandableCardClassName,
 } from '@/components/vcard/ExpandableEntryChrome'
 import { useExpandableEntryList } from '@/hooks/useExpandableEntryList'
+import { mapSkillsFromPayload } from '@/lib/ai/genericTabFill'
 import { useVCard } from '@/lib/VCardContext'
 import { createDefaultSkillGroup, normalizeSkillGroups } from '@/lib/vcardSkills'
 import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'

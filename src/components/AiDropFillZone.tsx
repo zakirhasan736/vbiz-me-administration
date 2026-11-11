@@ -2,8 +2,8 @@
 
 import { alignLabelAndBody, cleanShortLabel } from '@/lib/ai/alignPastedFields'
 import { countFillPayloadEntries, type SectionFillPayload } from '@/lib/ai/applyCardDraft'
-import { localContentFromText, type TabFillContext } from '@/lib/ai/genericTabFill'
 import { cardAgentForm } from '@/lib/ai/cardAgentClient'
+import { localContentFromText, type TabFillContext } from '@/lib/ai/genericTabFill'
 import { fillAssistantSection, scopeAssistantSectionPayload, type TabFillBodyMode } from '@/lib/assistantApi'
 import { plainTextToRichHtml } from '@/lib/htmlText'
 import { notify } from '@/lib/toast/toast'
@@ -345,7 +345,10 @@ export function AiDropFillZone({
             form.set('section', section)
             form.set('bodyMode', mode)
             if (hasText) form.set('text', text.trim())
-            form.set('currentDraft', JSON.stringify(context ? { tab: context, draft: currentDraft || {} } : currentDraft || {}))
+            form.set(
+              'currentDraft',
+              JSON.stringify(context ? { tab: context, draft: currentDraft || {} } : currentDraft || {})
+            )
             for (const file of files) form.append('files', file)
             return cardAgentForm<{
               payload?: SectionFillPayload

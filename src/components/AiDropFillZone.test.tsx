@@ -80,9 +80,7 @@ describe('AiDropFillZone generic sections', () => {
     await pasteAndFill(host, 'Our Mission\nWe help families.')
 
     expect(fillCalls).toEqual([['card_1', 'content', 'Our Mission\nWe help families.', [], 'as_written', context]])
-    expect(onFilled).toHaveBeenCalledWith(
-      expect.objectContaining({ section: 'content', count: 1, source: 'ai' })
-    )
+    expect(onFilled).toHaveBeenCalledWith(expect.objectContaining({ section: 'content', count: 1, source: 'ai' }))
   })
 
   it('delivers every entry for list tabs', async () => {

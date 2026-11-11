@@ -15,6 +15,7 @@ import {
 import { HideOwnerMediaToggle } from '@/components/vcard/HideOwnerMediaToggle'
 import { useExpandableEntryList } from '@/hooks/useExpandableEntryList'
 import { useHideOwnerSectionList } from '@/hooks/useHideOwnerSectionList'
+import { entriesToCerts, mapEntriesFromPayload } from '@/lib/ai/genericTabFill'
 import { stripHtml } from '@/lib/htmlText'
 import { isVideoUrl } from '@/lib/mediaUrl'
 import {
@@ -24,7 +25,6 @@ import {
   sectionPostsToCertItems,
   type CertItem,
 } from '@/lib/vcardCertificates'
-import { entriesToCerts, mapEntriesFromPayload } from '@/lib/ai/genericTabFill'
 import { useVCard } from '@/lib/VCardContext'
 import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
 import { cn } from '@/utils/cn'

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { countFillPayloadEntries } from './applyCardDraft'
 import {
   entriesToCerts,
   entriesToCustomTabItems,
@@ -10,7 +11,6 @@ import {
   mapExperienceFromPayload,
   mapSkillsFromPayload,
 } from './genericTabFill'
-import { countFillPayloadEntries } from './applyCardDraft'
 
 const eventsPayload = {
   entries: [
@@ -46,7 +46,14 @@ describe('mapEntriesFromPayload', () => {
 describe('entriesToSectionPosts', () => {
   it("fills only the fields the tab's schema shows", () => {
     const entries = mapEntriesFromPayload(eventsPayload)
-    const [withDate] = entriesToSectionPosts(entries, ['title', 'description', 'date', 'url', 'featuredImage', 'active'])
+    const [withDate] = entriesToSectionPosts(entries, [
+      'title',
+      'description',
+      'date',
+      'url',
+      'featuredImage',
+      'active',
+    ])
     expect(withDate).toMatchObject({
       title: 'Spring Gala',
       date: '2026-04-12',
@@ -103,7 +110,10 @@ describe('other list mappers', () => {
 describe('single content block', () => {
   it('maps AI content and counts it as one', () => {
     const payload = { content: { title: 'Our Mission', description: 'We help families plan.' } }
-    expect(mapContentFromPayload(payload)).toEqual({ title: 'Our Mission', description: '<p>We help families plan.</p>' })
+    expect(mapContentFromPayload(payload)).toEqual({
+      title: 'Our Mission',
+      description: '<p>We help families plan.</p>',
+    })
     expect(countFillPayloadEntries('content', payload)).toBe(1)
     expect(mapContentFromPayload({ content: { title: '', description: '' } })).toBeNull()
     expect(countFillPayloadEntries('content', {})).toBe(0)

@@ -2,7 +2,6 @@
 
 import { AiDropFillZone, type AiFilledResult } from '@/components/AiDropFillZone'
 import { SectionJumpPills } from '@/components/SectionJumpPills'
-import { mapEducationFromPayload } from '@/lib/ai/genericTabFill'
 import { CorporateOwnerContentView } from '@/components/vcard/CorporateOwnerContentView'
 import {
   ExpandableEntryBody,
@@ -14,6 +13,7 @@ import { HideOwnerMediaToggle } from '@/components/vcard/HideOwnerMediaToggle'
 import { VCardDateInput } from '@/components/vcard/VCardDateInput'
 import { useExpandableEntryList } from '@/hooks/useExpandableEntryList'
 import { useHideOwnerSectionList } from '@/hooks/useHideOwnerSectionList'
+import { mapEducationFromPayload } from '@/lib/ai/genericTabFill'
 import { useVCard } from '@/lib/VCardContext'
 import { createDefaultEducationEntry, normalizeEducationList } from '@/lib/vcardEducation'
 import { useResolvedSectionTitle } from '@/profile-app/lib/sectionTitleContext'
