@@ -13,6 +13,26 @@ export function isVideoUrl(url: string): boolean {
   return false
 }
 
+/**
+ * True when the URL is clearly a still image (image extension, image MIME/format hint, or a
+ * known image-only CDN). Used to stop images being played as video: a `<video>` pointing at
+ * an image shows nothing to visitors and Search Console reports it as "Video not processed".
+ */
+export function isImageUrl(url: string): boolean {
+  const trimmed = url.trim()
+  if (!trimmed) return false
+  if (/^data:image\//i.test(trimmed)) return true
+  if (isVideoUrl(trimmed)) return false
+  if (/\.(jpe?g|png|gif|webp|avif|bmp|svg|heic|heif)(\?|#|$)/i.test(trimmed)) return true
+  if (/[?&](fm|format)=(jpe?g|png|gif|webp|avif)(&|#|$)/i.test(trimmed)) return true
+  try {
+    const host = new URL(trimmed).hostname.toLowerCase()
+    return host === 'images.unsplash.com' || host === 'i.ytimg.com' || host === 'images.pexels.com'
+  } catch {
+    return false
+  }
+}
+
 /** True when the URL points at audio media. */
 export function isAudioUrl(url: string, fileName?: string | null): boolean {
   const trimmed = url.trim()

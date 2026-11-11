@@ -1,3 +1,5 @@
+import { isImageUrl } from '@/lib/mediaUrl'
+
 export type IntroQuality = 360 | 540 | 720
 
 export type NetworkHints = {
@@ -271,5 +273,7 @@ export function withVideoStartHint(url: string): string {
   if (!trimmed) return trimmed
   if (trimmed.startsWith('blob:') || trimmed.startsWith('data:') || trimmed.startsWith('/')) return trimmed
   if (/#t=/i.test(trimmed)) return trimmed
+  // Media fragments are for video; don't decorate image URLs.
+  if (isImageUrl(trimmed)) return trimmed
   return `${trimmed}#t=0.001`
 }

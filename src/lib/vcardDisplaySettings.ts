@@ -1,4 +1,5 @@
 import { normalizeNavOrderWithPinnedEnds, normalizeNavOrderWithRequiredTabs } from '@/lib/createCardTabs'
+import { isImageUrl } from '@/lib/mediaUrl'
 import type { ThemeMode } from '@/lib/theme/cardThemeContract'
 import { readableForeground } from '@/lib/theme/resolveCardTheme'
 import { canonicalCssColor } from '@/lib/theme/sectionStyleDefaults'
@@ -681,7 +682,8 @@ export function getHomeMediaUrls(settings: VCardDisplaySettings) {
   const introYoutube = visibleValue('Intro YouTube vCard Video Link')
 
   // Intro preloader: uploaded file preferred, otherwise YouTube link (plays inline).
-  const introVideo = introFile && !isYoutube(introFile) ? introFile : ''
+  // A still image saved in the intro field is not a video; never hand it to <video>.
+  const introVideo = introFile && !isYoutube(introFile) && !isImageUrl(introFile) ? introFile : ''
   /** File or YouTube URL for the public intro overlay. */
   const introPlayUrl = introVideo || introYoutube || (introFile && isYoutube(introFile) ? introFile : '')
 

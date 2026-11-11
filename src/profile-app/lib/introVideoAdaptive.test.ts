@@ -121,4 +121,10 @@ describe('buildAdaptiveIntroUrl', () => {
     expect(withVideoStartHint('https://cdn.example.com/a.mp4')).toBe('https://cdn.example.com/a.mp4#t=0.001')
     expect(withVideoStartHint('https://cdn.example.com/a.mp4#t=1')).toBe('https://cdn.example.com/a.mp4#t=1')
   })
+
+  it('leaves image URLs untouched', () => {
+    const still = 'https://images.unsplash.com/photo-1550684848-fac1c5b4e853?auto=format&w=300'
+    expect(withVideoStartHint(still)).toBe(still)
+    expect(withVideoStartHint('https://cdn.example.com/a.png')).toBe('https://cdn.example.com/a.png')
+  })
 })
