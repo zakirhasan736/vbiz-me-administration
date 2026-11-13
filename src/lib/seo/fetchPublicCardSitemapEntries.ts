@@ -9,6 +9,10 @@ export type PublicCardSitemapEntry = {
   name: string
   summary: string
   lastModified?: Date
+  /** Intro video (file or YouTube link) from the card list, for the video watch page entry. */
+  introVideoUrl?: string
+  /** Card image from the directory listing; used as the video thumbnail for uploaded files. */
+  image?: string
 }
 
 type PublicCardsPagePayload = {
@@ -20,6 +24,9 @@ type PublicCardsPagePayload = {
       designation?: string | null
       profession?: string | null
       updated_at?: string | null
+      intro_video_url?: string | null
+      image?: string | null
+      is_video?: boolean | null
     }>
     last_page?: number
     current_page?: number
@@ -75,6 +82,9 @@ export async function fetchPublicCardSitemapEntries(origin = getSiteOrigin()): P
         summary,
         url: buildPublicCardCanonicalUrl(origin, buildProfilePath(slug)),
         lastModified: updated && !Number.isNaN(updated.getTime()) ? updated : undefined,
+        introVideoUrl: typeof row.intro_video_url === 'string' ? row.intro_video_url.trim() || undefined : undefined,
+        image:
+          typeof row.image === 'string' && row.image.trim() && row.is_video !== true ? row.image.trim() : undefined,
       })
     }
 

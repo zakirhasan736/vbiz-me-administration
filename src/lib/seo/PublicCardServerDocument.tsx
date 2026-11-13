@@ -1,7 +1,9 @@
 import type { MyCardData } from '@/interfaces/api/myCard'
 import { buildProfilePath } from '@/lib/profileRoutes'
+import { resolveCardIntroVideoUrl } from '@/lib/seo/loadPublicCardVideoPage'
 import { buildPublicCardJsonLdGraph, serializeJsonLd } from '@/lib/seo/publicCardSeo'
 import { assemblePublicCardSource } from '@/lib/seo/publicCardSource'
+import { buildPublicCardVideoPath, resolveIntroVideo } from '@/lib/seo/publicCardVideo'
 
 type Props = {
   slug: string
@@ -16,6 +18,9 @@ type Props = {
  */
 export function PublicCardServerDocument({ slug, origin, myCard, sections }: Props) {
   const source = assemblePublicCardSource({ slug, origin, myCard, sections })
+  // Crawlable link to the intro-video watch page (/vCard/{slug}/video) when the card has one.
+  const hasIntroVideo = Boolean(resolveIntroVideo(resolveCardIntroVideoUrl(myCard)))
+  const videoPath = buildPublicCardVideoPath(buildProfilePath(slug))
   const jsonLd = buildPublicCardJsonLdGraph(
     {
       slug,
@@ -78,6 +83,7 @@ export function PublicCardServerDocument({ slug, origin, myCard, sections }: Pro
             ))}
           </section>
         ) : null}
+        {hasIntroVideo ? <a href={videoPath}>Watch {source.name}&apos;s intro video</a> : null}
         <a href={source.canonical}>{source.canonical}</a>
         <a href={source.markdownUrl}>Plain text version</a>
       </article>
