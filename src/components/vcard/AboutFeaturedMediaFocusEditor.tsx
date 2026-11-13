@@ -1,9 +1,9 @@
 'use client'
 
+import { ReliableImage } from '@/components/media/ReliableImage'
 import { featuredMediaObjectPosition, resolveFeaturedMediaFocusY } from '@/lib/media/featuredMediaFocus'
 import { encodeMediaUrl, isUsableImageSrc, isVideoUrl } from '@/lib/mediaUrl'
 import { MoveVertical } from 'lucide-react'
-import Image from 'next/image'
 import { useCallback, useRef, useState } from 'react'
 
 const FRAME_CLASS =
@@ -133,14 +133,12 @@ export function AboutFeaturedMediaFocusEditor({
             aria-hidden
           />
         ) : (
-          <Image
+          <ReliableImage
             src={encoded}
             alt={alt}
-            fill
-            className="pointer-events-none object-cover"
-            style={{ objectPosition }}
-            sizes="(max-width: 768px) 100vw, 640px"
             draggable={false}
+            className="pointer-events-none absolute inset-0 h-full w-full object-cover"
+            style={{ objectPosition }}
           />
         )}
 

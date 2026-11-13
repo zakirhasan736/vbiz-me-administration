@@ -1,4 +1,5 @@
 import type { ApiResponse } from '@/interfaces/api/api.interface'
+import type { GalleryLinkPreview } from '@/lib/media/linkPreview'
 
 export type AboutMeAttachment = {
   id: number
@@ -18,6 +19,14 @@ export type AboutMeItem = {
   updated_at: string
   featured_image: string | null
   featured_media_focus_y?: number | string | null
+  gallery_link?: {
+    url?: string | null
+    title?: string | null
+    description?: string | null
+    image?: string | null
+    site_name?: string | null
+    siteName?: string | null
+  } | null
   attachments?: AboutMeAttachment[]
 }
 
@@ -68,6 +77,7 @@ export type AboutMeListItem = {
   introHtml: string
   featuredImage: string
   featuredMediaFocusY: number
+  galleryLink: GalleryLinkPreview | null
   pillars: AboutMePillar[]
   highlight: AboutMeHighlight | null
   footer: AboutMeFooter | null

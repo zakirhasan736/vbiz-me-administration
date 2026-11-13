@@ -84,6 +84,23 @@ function resolveMediaSrc(item: GalleryListItem): string {
   return (item.linkUrl || '').trim()
 }
 
+/** Project / Link URL from the builder, or a pasted remote media URL visitors can open. */
+function resolveOpenHref(item: GalleryListItem): string {
+  const link = (item.linkUrl || '').trim()
+  if (/^https?:\/\//i.test(link)) return link
+  const media = item.imageUrl.trim()
+  if (/^https?:\/\//i.test(media)) return media
+  return ''
+}
+
+function hostnameLabel(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '')
+  } catch {
+    return 'Open link'
+  }
+}
+
 function MediaShell({
   lockedAspect,
   className,
@@ -307,13 +324,40 @@ function GalleryMediaPreview({ item, lockedAspect }: { item: GalleryListItem; lo
   )
 }
 
+function GalleryOpenLinkButton({
+  href,
+  label = 'Open link',
+  className,
+}: {
+  href: string
+  label?: string
+  className?: string
+}) {
+  if (!href) return null
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={(event) => event.stopPropagation()}
+      className={cn(
+        'inline-flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-sm font-bold text-zinc-900 shadow-md transition hover:bg-zinc-100',
+        className
+      )}
+    >
+      <ExternalLink size={16} />
+      {label}
+    </a>
+  )
+}
+
 function GalleryLightboxMedia({ item }: { item: GalleryListItem }) {
   const kind = resolveItemKind(item)
   const rawSrc = resolveMediaSrc(item)
   const encoded = encodeMediaUrl(rawSrc)
   const youtube = youtubeEmbedSrc(rawSrc)
   const vimeo = vimeoEmbedSrc(rawSrc)
-  const openHref = (item.linkUrl || rawSrc).trim()
+  const openHref = resolveOpenHref(item)
 
   if (!rawSrc) {
     return (
@@ -322,6 +366,7 @@ function GalleryLightboxMedia({ item }: { item: GalleryListItem }) {
         {item.description?.trim() ? (
           <p className="max-w-md text-sm leading-relaxed text-white/80">{item.description}</p>
         ) : null}
+        <GalleryOpenLinkButton href={openHref} />
       </div>
     )
   }
@@ -359,6 +404,7 @@ function GalleryLightboxMedia({ item }: { item: GalleryListItem }) {
       <div className="flex min-h-48 w-[min(560px,90vw)] flex-col items-center justify-center gap-4 bg-zinc-950 px-6 py-10">
         <Music size={40} className="text-white/70" />
         <audio src={encoded || rawSrc} controls preload="metadata" className="w-full" />
+        <GalleryOpenLinkButton href={openHref} />
       </div>
     )
   }
@@ -377,16 +423,7 @@ function GalleryLightboxMedia({ item }: { item: GalleryListItem }) {
     return (
       <div className="flex min-h-48 w-[min(560px,90vw)] flex-col items-center justify-center gap-4 bg-zinc-950 px-6 py-10">
         <FileText size={40} className="text-white/70" />
-        {openHref ? (
-          <a
-            href={openHref}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-sm font-bold text-zinc-900"
-          >
-            <ExternalLink size={16} /> Open document
-          </a>
-        ) : null}
+        <GalleryOpenLinkButton href={openHref} label="Open document" />
       </div>
     )
   }
@@ -395,16 +432,8 @@ function GalleryLightboxMedia({ item }: { item: GalleryListItem }) {
     return (
       <div className="flex min-h-48 w-[min(560px,90vw)] flex-col items-center justify-center gap-4 bg-zinc-950 px-6 py-10">
         <ExternalLink size={40} className="text-white/70" />
-        {openHref ? (
-          <a
-            href={openHref}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-sm font-bold text-zinc-900"
-          >
-            Open link
-          </a>
-        ) : null}
+        {openHref ? <p className="max-w-md truncate text-sm text-white/70">{hostnameLabel(openHref)}</p> : null}
+        <GalleryOpenLinkButton href={openHref} />
       </div>
     )
   }
@@ -458,6 +487,7 @@ function GalleryCard({
   const [isHovered, setIsHovered] = useState(false)
   const [direction, setDirection] = useState<HoverDirection>('top')
   const kind = resolveItemKind(item)
+  const openHref = resolveOpenHref(item)
 
   const handleMouseEnter = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
     if (!cardRef.current) return
@@ -517,7 +547,19 @@ function GalleryCard({
               </div>
             ) : null}
 
-            <div className="mt-auto flex justify-end">
+            <div className="mt-auto flex justify-end gap-2">
+              {openHref ? (
+                <a
+                  href={openHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={`Open link for ${item.title || 'gallery item'}`}
+                  onClick={(event) => event.stopPropagation()}
+                  className="vbiz-card-action flex h-10 w-10 shrink-0 items-center justify-center rounded-sm shadow-md transition-transform hover:scale-105 active:scale-95"
+                >
+                  <ExternalLink size={18} strokeWidth={2.25} />
+                </a>
+              ) : null}
               <button
                 type="button"
                 aria-label={`View ${kind}: ${item.title}`}
@@ -595,9 +637,19 @@ function GalleryLightbox({ item, onClose }: { item: GalleryListItem; onClose: ()
         onClick={(event) => event.stopPropagation()}
       >
         <GalleryLightboxMedia item={item} />
-        {item.title.trim() ? (
-          <div className="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/70 to-transparent px-5 py-4">
-            <p className="vbiz-title text-base font-bold text-white">{item.title}</p>
+        {item.title.trim() || resolveOpenHref(item) ? (
+          <div className="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/80 to-transparent px-5 pt-10 pb-4">
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <div className="min-w-0">
+                {item.title.trim() ? <p className="vbiz-title text-base font-bold text-white">{item.title}</p> : null}
+                {resolveOpenHref(item) ? (
+                  <p className="mt-0.5 truncate text-xs font-medium text-white/70">
+                    {hostnameLabel(resolveOpenHref(item))}
+                  </p>
+                ) : null}
+              </div>
+              <GalleryOpenLinkButton href={resolveOpenHref(item)} className="shrink-0" />
+            </div>
           </div>
         ) : null}
       </motion.div>

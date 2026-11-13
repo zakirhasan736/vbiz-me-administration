@@ -1,3 +1,5 @@
+import type { GalleryLinkPreview } from '@/lib/media/linkPreview'
+
 /** Session-local About Me draft (synced to API via aboutMePersist when a profile id exists). */
 
 export type AboutMeDraft = {
@@ -6,6 +8,12 @@ export type AboutMeDraft = {
   featuredMediaUrl: string
   /** 0–100 object-position Y; null uses legacy public default until user adjusts. */
   featuredMediaFocusY: number | null
+  /**
+   * null = not loaded yet, so a save must not clear a gallery stored on the server.
+   * '' = the owner removed the gallery link.
+   */
+  galleryUrl: string | null
+  galleryPreview: GalleryLinkPreview | null
 }
 
 const EMPTY: AboutMeDraft = {
@@ -13,6 +21,8 @@ const EMPTY: AboutMeDraft = {
   descriptionHtml: '',
   featuredMediaUrl: '',
   featuredMediaFocusY: null,
+  galleryUrl: null,
+  galleryPreview: null,
 }
 
 let draft: AboutMeDraft = { ...EMPTY }
@@ -47,6 +57,9 @@ export function isAboutMeDescriptionFilled(html: string): boolean {
 
 export function hasAboutMeDraftContent(value: AboutMeDraft = draft): boolean {
   return Boolean(
-    value.title.trim() || isAboutMeDescriptionFilled(value.descriptionHtml) || value.featuredMediaUrl.trim()
+    value.title.trim() ||
+    isAboutMeDescriptionFilled(value.descriptionHtml) ||
+    value.featuredMediaUrl.trim() ||
+    Boolean(value.galleryUrl?.trim())
   )
 }

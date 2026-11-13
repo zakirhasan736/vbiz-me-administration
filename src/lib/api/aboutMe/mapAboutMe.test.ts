@@ -37,6 +37,36 @@ describe('mapAboutMeItemToListItem', () => {
     })
 
     expect(item.featuredMediaFocusY).toBe(68)
+    expect(item.galleryLink).toBeNull()
+  })
+
+  it('maps a gallery page preview onto the public About item', () => {
+    const item = mapAboutMeItemToListItem({
+      id: 4,
+      title: 'About',
+      description: '<p>Hello</p>',
+      profile_id: 10,
+      post_type_id: 2,
+      status: 1,
+      created_at: '2026-01-01T00:00:00.000Z',
+      updated_at: '2026-01-01T00:00:00.000Z',
+      featured_image: null,
+      gallery_link: {
+        url: 'https://imaginedbyaloellc.pixieset.com/diplomatic',
+        title: 'Diplomatic Cuisine: Jamaican Cuisine Meets Soul Food',
+        description: 'Photo collection by Imagined By Aloe LLC',
+        image: 'https://images.pixieset.com/collections/diplomatic.jpg',
+        site_name: 'Imagined By Aloe LLC',
+      },
+    })
+
+    expect(item.galleryLink).toEqual({
+      url: 'https://imaginedbyaloellc.pixieset.com/diplomatic',
+      title: 'Diplomatic Cuisine: Jamaican Cuisine Meets Soul Food',
+      description: 'Photo collection by Imagined By Aloe LLC',
+      image: 'https://images.pixieset.com/collections/diplomatic.jpg',
+      siteName: 'Imagined By Aloe LLC',
+    })
   })
 
   it('keeps ordinary rich-text headings, lists, and marks as the intro', () => {

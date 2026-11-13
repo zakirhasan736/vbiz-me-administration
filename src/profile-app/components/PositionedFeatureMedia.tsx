@@ -1,5 +1,6 @@
 'use client'
 
+import { ReliableImage } from '@/components/media/ReliableImage'
 import { resolveEmbedVideoUrl } from '@/lib/media/pastedMediaUrl'
 import {
   parseProfileMediaFrame,
@@ -75,10 +76,7 @@ export function PositionedFeatureMedia({ src, alt, frame, className, video = fal
     if (playVideo) {
       return <video src={src} className={className} controls playsInline preload="metadata" aria-label={alt} />
     }
-    return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img src={src} alt={alt} className={className} />
-    )
+    return <ReliableImage src={src} alt={alt} className={className} />
   }
 
   // Contain / fill / none / scale-down: fill the black frame with CSS object-fit (letterbox).
@@ -113,8 +111,7 @@ export function PositionedFeatureMedia({ src, alt, frame, className, video = fal
           }}
         />
       ) : (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
+        <ReliableImage
           src={src}
           alt={alt}
           draggable={false}

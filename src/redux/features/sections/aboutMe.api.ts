@@ -1,5 +1,6 @@
 import type { AboutMeQueryResult, AboutMeSectionResponse } from '@/interfaces/api/aboutMe.interface'
 import { normalizeAboutMeResponse } from '@/lib/api/aboutMe/mapAboutMe'
+import type { GalleryLinkPreview } from '@/lib/media/linkPreview'
 import { TAB_REGISTRY } from '@/lib/tabRegistry'
 import { api } from '@/redux/api/api'
 import { publicApi } from '@/redux/api/publicApi'
@@ -13,6 +14,8 @@ export type ProfileAboutMeRecord = {
   description: string | null
   featuredMediaUrl: string | null
   featuredMediaFocusY: number | null
+  galleryUrl?: string | null
+  galleryPreview?: GalleryLinkPreview | null
   status: string
   legacyPostId: number | null
   createdAt: string
@@ -24,6 +27,8 @@ export type UpsertAboutMeBody = {
   description: string
   featuredMediaUrl: string
   featuredMediaFocusY?: number | null
+  galleryUrl?: string | null
+  galleryPreview?: GalleryLinkPreview | null
   status?: string
 }
 

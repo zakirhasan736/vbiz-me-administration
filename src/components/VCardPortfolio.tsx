@@ -392,9 +392,11 @@ export function TabPortfolio() {
                                 const type: GalleryPortfolioType =
                                   detected === 'Video' || isVideoUrl(nextUrl)
                                     ? 'Video'
-                                    : detected === 'Link' || /^https?:\/\//i.test(nextUrl.trim())
-                                      ? 'Link'
-                                      : detected
+                                    : detected === 'Image' || detected === 'Document'
+                                      ? detected
+                                      : detected === 'Link' || /^https?:\/\//i.test(nextUrl.trim())
+                                        ? 'Link'
+                                        : detected
                                 patchPortfolio(portfolio.id, { url: nextUrl, type })
                                 return
                               }
@@ -403,6 +405,12 @@ export function TabPortfolio() {
                             placeholder={portfolio.type === 'Video' ? 'Enter YouTube video URL' : 'https://…'}
                             className={inputClasses}
                           />
+                          {portfolio.type !== 'Video' ? (
+                            <p className="pl-1 text-[12px] font-medium text-slate-500 dark:text-slate-400">
+                              Visitors open this link from the public gallery photo. Featured media is the preview
+                              image; this URL is the click-through.
+                            </p>
+                          ) : null}
                         </div>
 
                         <div className="mt-4 flex items-center gap-4 pt-2">

@@ -1,5 +1,6 @@
 'use client'
 
+import { ReliableImage } from '@/components/media/ReliableImage'
 import { cn } from '@/utils/cn'
 import { useCallback, useState, type ImgHTMLAttributes, type ReactNode, type VideoHTMLAttributes } from 'react'
 
@@ -106,8 +107,7 @@ export function SkeletonImage({
   return (
     <div className={cn('relative overflow-hidden', fill && 'absolute inset-0 h-full w-full', className)}>
       {!loaded ? <SkeletonWave label={skeletonLabel} /> : null}
-      {/* eslint-disable-next-line @next/next/no-img-element -- remote CDN / S3 media */}
-      <img
+      <ReliableImage
         {...imgProps}
         src={url}
         alt={alt}

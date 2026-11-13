@@ -79,12 +79,22 @@ export function mapGalleryItemToListItem(item: GalleryItem, index = 0): GalleryL
     }
   }
 
+  // Featured upload/paste wins for the preview. A project URL can still be the click-through.
+  // A link-only row that is itself an image/video/document URL should render as that media.
   const mediaUrl = featuredUrl || (isVideoUrl(linkUrl) ? linkUrl : '')
-
-  const mediaKind = detectGalleryMediaKind(mediaUrl || linkUrl, {
+  const detectedKind = detectGalleryMediaKind(mediaUrl || linkUrl, {
     type: item.type,
     linkUrl,
   })
+  const mediaKind = mediaUrl
+    ? detectedKind
+    : linkUrl
+      ? isVideoUrl(linkUrl)
+        ? 'video'
+        : detectedKind === 'image' || detectedKind === 'document' || detectedKind === 'audio'
+          ? detectedKind
+          : 'link'
+      : detectedKind
 
   return {
     id: item.id ?? featured?.id ?? index + 1,
@@ -93,7 +103,7 @@ export function mapGalleryItemToListItem(item: GalleryItem, index = 0): GalleryL
     imageUrl: mediaUrl || (mediaKind === 'link' ? '' : linkUrl),
     mediaFrame: readOptionalMediaFrame(item.media_frame),
     createdAt: item.created_at ?? '',
-    mediaKind: mediaUrl ? mediaKind : linkUrl ? (isVideoUrl(linkUrl) ? 'video' : 'link') : mediaKind,
+    mediaKind,
     linkUrl: linkUrl || undefined,
   }
 }

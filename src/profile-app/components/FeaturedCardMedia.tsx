@@ -1,5 +1,6 @@
 'use client'
 
+import { ReliableImage } from '@/components/media/ReliableImage'
 import { isDirectVideoUrl, resolveEmbedVideoUrl } from '@/lib/media/pastedMediaUrl'
 import type { ProfileMediaFrame } from '@/lib/media/profileMediaFrame'
 import { FeatureMediaEmbed } from '@/profile-app/components/FeatureMediaEmbed'
@@ -71,8 +72,7 @@ export function FeaturedCardMedia({
           aria-label={alt}
         />
       ) : (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={url} alt={alt} className={mediaClassName || 'h-full w-full object-cover object-center'} />
+        <ReliableImage src={url} alt={alt} className={mediaClassName || 'h-full w-full object-cover object-center'} />
       )}
     </div>
   )

@@ -9,6 +9,7 @@ import type {
 } from '@/interfaces/api/aboutMe.interface'
 import { decodeHtmlText, stripHtml } from '@/lib/htmlText'
 import { parseFeaturedMediaFocusY } from '@/lib/media/featuredMediaFocus'
+import type { GalleryLinkPreview } from '@/lib/media/linkPreview'
 
 function isActiveStatus(status: number | string): boolean {
   return String(status).trim() === '1'
@@ -122,6 +123,24 @@ function parseAboutMeDescription(html: string): {
   return { introHtml, pillars, highlight, footer }
 }
 
+function mapGalleryLink(raw: AboutMeItem['gallery_link']): GalleryLinkPreview | null {
+  const url = raw?.url?.trim() || ''
+  if (!url) return null
+  try {
+    const parsed = new URL(url)
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return null
+  } catch {
+    return null
+  }
+  return {
+    url,
+    title: raw?.title?.trim() || '',
+    description: raw?.description?.trim() || '',
+    image: raw?.image?.trim() || '',
+    siteName: raw?.site_name?.trim() || raw?.siteName?.trim() || '',
+  }
+}
+
 function resolveFeaturedImage(item: AboutMeItem): string {
   const featured = item.featured_image?.trim() ?? ''
   if (featured) return featured
@@ -142,6 +161,7 @@ export function mapAboutMeItemToListItem(item: AboutMeItem): AboutMeListItem {
     introHtml: parsed.introHtml || html,
     featuredImage: resolveFeaturedImage(item),
     featuredMediaFocusY: parseFeaturedMediaFocusY(item.featured_media_focus_y),
+    galleryLink: mapGalleryLink(item.gallery_link),
     pillars: parsed.pillars,
     highlight: parsed.highlight,
     footer: parsed.footer,

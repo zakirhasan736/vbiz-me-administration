@@ -2,6 +2,7 @@
 
 import { SkeletonImage, SkeletonVideo } from '@/components/media/SkeletonMedia'
 import { AvatarMediaFramePreview } from '@/components/vcard/AvatarMediaFramePreview'
+import { displayImageSrc } from '@/lib/media/displayImageSrc'
 import {
   allowedKindsFromAccept,
   classifyPastedMediaUrl,
@@ -127,6 +128,24 @@ function isVideoOnlyAccept(accept: string): boolean {
   return tokens.every((t) => t === 'video/*' || t.startsWith('video/') || /^\.(mp4|webm|mov|m4v|ogg|ogv)$/i.test(t))
 }
 
+function probeImageElement(url: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    const image = new window.Image()
+    let settled = false
+    const finish = (ok: boolean) => {
+      if (settled) return
+      settled = true
+      window.clearTimeout(timer)
+      resolve(ok)
+    }
+    const timer = window.setTimeout(() => finish(false), 12000)
+    image.onload = () => finish(image.naturalWidth > 0)
+    image.onerror = () => finish(false)
+    image.referrerPolicy = 'no-referrer'
+    image.src = url
+  })
+}
+
 function isLikelyImageUrl(url: string): boolean {
   const trimmed = url.trim()
   if (!trimmed) return false
@@ -217,6 +236,7 @@ export function MediaFileUploader({
   const [localPreview, setLocalPreview] = useState<string | null>(null)
   const [localMime, setLocalMime] = useState<string | null>(null)
   const [urlDraft, setUrlDraft] = useState('')
+  const [checkingUrl, setCheckingUrl] = useState(false)
   const [clearing, setClearing] = useState(false)
 
   const styles = accentMap[accent]
@@ -344,7 +364,7 @@ export function MediaFileUploader({
     })()
   }
 
-  const applyUrl = () => {
+  const applyUrl = async () => {
     const next = normalizePastedMediaUrl(urlDraft)
     if (!next) {
       setError('Paste a full link that starts with https://')
@@ -357,10 +377,28 @@ export function MediaFileUploader({
     }
 
     // Same file types the upload button accepts (e.g. an image-only field rejects video links).
-    const typeError = validatePastedMediaUrl(next, allowedKindsFromAccept(accept))
+    const allowed = allowedKindsFromAccept(accept)
+    const typeError = validatePastedMediaUrl(next, allowed)
     if (typeError) {
       setError(typeError)
       return
+    }
+
+    const kind = classifyPastedMediaUrl(next)
+    if (allowed.image && (kind === 'image' || kind === 'unknown')) {
+      setCheckingUrl(true)
+      const directOk = await probeImageElement(next)
+      const proxy = displayImageSrc(next)
+      const ok = directOk || (proxy !== next && (await probeImageElement(proxy)))
+      setCheckingUrl(false)
+      if (!ok) {
+        setError(
+          attachmentType === 'About Me Featured'
+            ? 'This link did not load as an image. Paste a direct image file URL, or use Photo gallery link for a gallery page.'
+            : 'This link did not load as an image. Paste a direct image file URL.'
+        )
+        return
+      }
     }
 
     setError(null)
@@ -587,7 +625,7 @@ export function MediaFileUploader({
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 e.preventDefault()
-                applyUrl()
+                void applyUrl()
               }
             }}
             aria-label={videoOnly ? 'Paste a video URL' : 'Paste a media URL'}
@@ -606,11 +644,11 @@ export function MediaFileUploader({
           />
           <button
             type="button"
-            onClick={applyUrl}
-            disabled={disabled || uploading || !urlDraft.trim()}
+            onClick={() => void applyUrl()}
+            disabled={disabled || uploading || checkingUrl || !urlDraft.trim()}
             className="shrink-0 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-[12px] font-bold text-slate-700 transition hover:bg-slate-100 disabled:opacity-50 dark:border-white/10 dark:bg-white/5 dark:text-slate-200"
           >
-            Use URL
+            {checkingUrl ? 'Checking…' : 'Use URL'}
           </button>
           {urlDraft ? (
             <button

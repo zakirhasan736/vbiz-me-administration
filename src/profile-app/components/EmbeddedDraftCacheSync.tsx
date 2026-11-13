@@ -288,6 +288,17 @@ function aboutMeDraftToQueryResult(draft: AboutMeDraft, sectionTitle: string): A
         updated_at: '',
         featured_image: draft.featuredMediaUrl.trim() || null,
         featured_media_focus_y: draft.featuredMediaFocusY,
+        gallery_link: draft.galleryPreview
+          ? {
+              url: draft.galleryPreview.url,
+              title: draft.galleryPreview.title,
+              description: draft.galleryPreview.description,
+              image: draft.galleryPreview.image,
+              site_name: draft.galleryPreview.siteName,
+            }
+          : draft.galleryUrl
+            ? { url: draft.galleryUrl, title: '', description: '', image: '', site_name: '' }
+            : null,
       }),
     ],
   }
@@ -464,11 +475,20 @@ export function EmbeddedDraftCacheSync({
           .map((p) => {
             const media = p.imageUrl?.trim() || ''
             const link = p.url?.trim() || ''
-            const mediaKind = detectGalleryMediaKind(media || link, {
+            const detectedKind = detectGalleryMediaKind(media || link, {
               type: p.type,
               fileName: p.imageName,
               linkUrl: link,
             })
+            const mediaKind = media
+              ? detectedKind
+              : link
+                ? isVideoUrl(link)
+                  ? 'video'
+                  : detectedKind === 'image' || detectedKind === 'document' || detectedKind === 'audio'
+                    ? detectedKind
+                    : 'link'
+                : detectedKind
             const imageUrl = media || (isVideoUrl(link) ? link : mediaKind === 'link' ? '' : link)
             return {
               id: p.id,
@@ -476,7 +496,7 @@ export function EmbeddedDraftCacheSync({
               imageUrl,
               mediaFrame: p.mediaFrame ?? null,
               createdAt: '',
-              mediaKind: media ? mediaKind : link ? (isVideoUrl(link) ? 'video' : 'link') : mediaKind,
+              mediaKind,
               linkUrl: link || undefined,
             }
           }),

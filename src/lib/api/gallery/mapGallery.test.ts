@@ -51,4 +51,28 @@ describe('mapGalleryItemToListItem', () => {
     expect(item?.mediaKind).toBe('link')
     expect(item?.linkUrl).toBe('https://example.com/project')
   })
+
+  it('keeps the project URL when a featured image is also set', () => {
+    const item = mapGalleryItemToListItem({
+      id: 6,
+      title: 'Lookbook',
+      featured_image: { id: 6, doc_name: 'cover', url: 'https://cdn.example.com/cover.jpg' },
+      general_info_url: 'https://imaginedbyaloellc.pixieset.com/diplomatic',
+    })
+    expect(item?.mediaKind).toBe('image')
+    expect(item?.imageUrl).toContain('cover.jpg')
+    expect(item?.linkUrl).toBe('https://imaginedbyaloellc.pixieset.com/diplomatic')
+  })
+
+  it('shows a pasted image URL from the link field as the photo', () => {
+    const item = mapGalleryItemToListItem({
+      id: 7,
+      title: 'Chef',
+      featured_image: null,
+      general_info_url: 'https://cdn.example.com/photos/chef.jpg',
+    })
+    expect(item?.mediaKind).toBe('image')
+    expect(item?.imageUrl).toBe('https://cdn.example.com/photos/chef.jpg')
+    expect(item?.linkUrl).toBe('https://cdn.example.com/photos/chef.jpg')
+  })
 })

@@ -1,5 +1,7 @@
 'use client'
 
+import { GalleryLinkCard } from '@/components/media/GalleryLinkCard'
+import { ReliableImage } from '@/components/media/ReliableImage'
 import { SkeletonMediaShell, SkeletonVideo, useMediaLoadState } from '@/components/media/SkeletonMedia'
 import { DEFAULT_ABOUT_FEATURED_MEDIA_FOCUS_Y, featuredMediaObjectPosition } from '@/lib/media/featuredMediaFocus'
 import { encodeMediaUrl, isUsableImageSrc, isVideoUrl } from '@/lib/mediaUrl'
@@ -9,7 +11,6 @@ import { useResolvedSectionTitle, useSectionBanner } from '@/profile-app/lib/sec
 import { SectionBannerNotes, V3EmptyState, V3ErrorState, V3SectionShell } from '@/profile-app/sections'
 import { useGetAboutMeQuery } from '@/redux/api'
 import { BookOpen, Flag, Lightbulb, Quote, Sparkles, Target, Users } from 'lucide-react'
-import Image from 'next/image'
 
 const FIXED_SECTION_TITLE = 'About Me'
 
@@ -121,15 +122,12 @@ function AboutFeaturedNextImage({
   const { loaded, markLoaded, markError } = useMediaLoadState(src)
   return (
     <SkeletonMediaShell loading={!loaded} label="Loading About Me media" className="absolute inset-0 h-full w-full">
-      <Image
+      <ReliableImage
         src={src}
         alt={alt}
-        fill
-        className={`${mediaClass} transition-opacity duration-300 ${loaded ? 'opacity-100' : 'opacity-0'}`}
+        className={`absolute inset-0 h-full w-full ${mediaClass} transition-opacity duration-300 ${loaded ? 'opacity-100' : 'opacity-0'}`}
         style={{ objectPosition }}
-        sizes="(max-width: 768px) 100vw, 768px"
-        priority
-        onLoadingComplete={markLoaded}
+        onLoad={markLoaded}
         onError={markError}
       />
     </SkeletonMediaShell>
@@ -236,6 +234,8 @@ export const AboutSection = () => {
                   focusY={item?.featuredMediaFocusY ?? DEFAULT_ABOUT_FEATURED_MEDIA_FOCUS_Y}
                 />
               ) : null}
+
+              {item?.galleryLink?.url ? <GalleryLinkCard preview={item.galleryLink} /> : null}
 
               {showHeadline ? (
                 <p className="vbiz-about-headline max-w-2xl text-sm leading-tight font-bold md:text-base">{headline}</p>

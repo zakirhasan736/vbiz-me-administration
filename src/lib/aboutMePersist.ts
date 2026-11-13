@@ -47,6 +47,12 @@ function buildUpsertBody() {
     description: draft.descriptionHtml,
     featuredMediaUrl: draft.featuredMediaUrl || '',
     featuredMediaFocusY: draft.featuredMediaFocusY,
+    ...(draft.galleryUrl === null
+      ? {}
+      : {
+          galleryUrl: draft.galleryUrl,
+          galleryPreview: draft.galleryPreview,
+        }),
   }
 }
 

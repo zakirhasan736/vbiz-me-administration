@@ -5,6 +5,7 @@ import { RichTextEditor } from '@/components/editor/RichTextEditor'
 import { MediaFileUploader } from '@/components/media/MediaFileUploader'
 import { MediaSourceActions } from '@/components/MediaSourceActions'
 import { AboutFeaturedMediaFocusEditor } from '@/components/vcard/AboutFeaturedMediaFocusEditor'
+import { GalleryLinkField } from '@/components/vcard/GalleryLinkField'
 import { useAppDispatch } from '@/hooks/redux'
 import {
   getAboutMeDraft,
@@ -62,6 +63,8 @@ export function AboutMeEditorPanel({ cardId }: AboutMeEditorPanelProps) {
         descriptionHtml: data.description || '',
         featuredMediaUrl: canvaUrl || data.featuredMediaUrl || '',
         featuredMediaFocusY: canvaUrl ? null : (data.featuredMediaFocusY ?? null),
+        galleryUrl: data.galleryUrl?.trim() || '',
+        galleryPreview: data.galleryPreview?.url ? data.galleryPreview : null,
       })
       return
     }
@@ -109,7 +112,8 @@ export function AboutMeEditorPanel({ cardId }: AboutMeEditorPanelProps) {
         <h3 className="mb-2 text-lg font-black text-violet-600 dark:text-violet-400">{tabLabel}</h3>
         <p className="text-[14px] leading-relaxed font-medium text-slate-500 dark:text-slate-400">
           The section is always labeled About Me on your public card. Your title is the headline under that, followed by
-          the rich description. Featured media can be an image or a video — the public card shows the same file.
+          the rich description. Featured media can be an image or a video — the public card shows the same file. A
+          gallery page link shows that page’s preview image and opens the gallery when a visitor taps it.
         </p>
       </div>
 
@@ -181,7 +185,7 @@ export function AboutMeEditorPanel({ cardId }: AboutMeEditorPanelProps) {
             profileId={cardId}
             attachmentType="About Me Featured"
             accept="image/*,video/*"
-            hint="Upload an image or a video. The public About Me section shows this same file."
+            hint="Upload a file or paste a direct image or video URL. The public About Me section shows that same file."
             value={draft.featuredMediaUrl}
             onChange={(next) =>
               update({
@@ -207,6 +211,11 @@ export function AboutMeEditorPanel({ cardId }: AboutMeEditorPanelProps) {
             attachmentType="About Me Featured"
             designTitle={draft.title ? `${draft.title} — About Me` : 'About Me featured'}
             onSelect={(asset) => update({ featuredMediaUrl: asset.url, featuredMediaFocusY: null })}
+          />
+          <GalleryLinkField
+            url={draft.galleryUrl || ''}
+            preview={draft.galleryPreview}
+            onChange={(next) => update({ galleryUrl: next.url, galleryPreview: next.preview })}
           />
         </div>
       </section>
