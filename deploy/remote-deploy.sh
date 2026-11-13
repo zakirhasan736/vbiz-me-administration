@@ -36,6 +36,9 @@ echo "==> Building Next.js in release ${RELEASE_SHA} (live site untouched)"
 set -a
 source "$SHARED_ENV"
 set +a
+# The type-check step of `next build` needs more than Node's default ~2 GB heap for this app
+# ("JavaScript heap out of memory" / build worker SIGABRT). Honour a value set in the shared env.
+export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=4096}"
 yarn build
 
 echo "==> Atomic symlink flip -> current"
