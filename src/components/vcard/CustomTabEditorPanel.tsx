@@ -1,5 +1,6 @@
 'use client'
 
+import { AiDropFillZone, type AiFilledResult } from '@/components/AiDropFillZone'
 import { RichTextEditor } from '@/components/editor/RichTextEditor'
 import { MediaFileUploader } from '@/components/media/MediaFileUploader'
 import type { MediaAsset } from '@/components/MediaSourceActions'
@@ -9,6 +10,7 @@ import { CorporateOwnerContentView } from '@/components/vcard/CorporateOwnerCont
 import { EntryAttachmentThumb } from '@/components/vcard/ExpandableEntryChrome'
 import { HideOwnerMediaToggle } from '@/components/vcard/HideOwnerMediaToggle'
 import { useHideOwnerSectionList } from '@/hooks/useHideOwnerSectionList'
+import { entriesToCustomTabItems, mapEntriesFromPayload } from '@/lib/ai/genericTabFill'
 import { stripHtml } from '@/lib/htmlText'
 import { customTabHideOwnerSectionKey } from '@/lib/memberMediaVisibility'
 import type { VCardCustomTab, VCardCustomTabItem } from '@/types/vcard'
@@ -70,6 +72,12 @@ export function CustomTabEditorPanel({ tab, cardId, onChange }: CustomTabEditorP
   )
 
   const addItem = () => commitVisible([createCustomItem(), ...visibleItems])
+
+  /** AI Auto-fill: one custom-tab item per entry found in the pasted text or file. */
+  const applyAiFill = (result: AiFilledResult) => {
+    const created = entriesToCustomTabItems(mapEntriesFromPayload(result.payload))
+    if (created.length) commitVisible([...created, ...visibleItems])
+  }
 
   const removeItem = (id: string) => {
     const target = items.find((item) => item.id === id)
@@ -185,6 +193,16 @@ export function CustomTabEditorPanel({ tab, cardId, onChange }: CustomTabEditorP
           />
         ) : null}
       </div>
+
+      <AiDropFillZone
+        section="entries"
+        profileId={cardId}
+        context={{ tabName: tab.label || 'Custom tab', fields: ['title', 'description', 'url', 'imageUrl'] }}
+        currentDraft={{ customTab: { label: tab.label, items: visibleItems } }}
+        accent="teal"
+        hint={`Drop a document or paste a list — AI creates one ${tab.label || 'custom tab'} item per entry`}
+        onFilled={applyAiFill}
+      />
 
       {visibleItems.length === 0 ? (
         <div className="rounded-4xl border border-dashed border-slate-200 bg-slate-50/60 p-12 text-center shadow-sm dark:border-white/10 dark:bg-white/2">

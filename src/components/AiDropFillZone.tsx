@@ -3,6 +3,7 @@
 import { alignLabelAndBody, cleanShortLabel } from '@/lib/ai/alignPastedFields'
 import { countFillPayloadEntries, type SectionFillPayload } from '@/lib/ai/applyCardDraft'
 import { cardAgentForm } from '@/lib/ai/cardAgentClient'
+import { localContentFromText, type TabFillContext } from '@/lib/ai/genericTabFill'
 import { fillAssistantSection, scopeAssistantSectionPayload, type TabFillBodyMode } from '@/lib/assistantApi'
 import { plainTextToRichHtml } from '@/lib/htmlText'
 import { notify } from '@/lib/toast/toast'
@@ -16,7 +17,19 @@ export type ParsedEntry = {
 }
 
 export type AiDropFillSection =
-  'services' | 'blogs' | 'portfolio' | 'reviews' | 'skills' | 'education' | 'experience' | 'faqs' | 'personal'
+  | 'services'
+  | 'blogs'
+  | 'portfolio'
+  | 'reviews'
+  | 'skills'
+  | 'education'
+  | 'experience'
+  | 'faqs'
+  | 'personal'
+  /** Generic list for any multi-item tab (section posts, certificates, custom tabs). */
+  | 'entries'
+  /** One heading + body for single-item tabs (About Me, Mission Statement…). */
+  | 'content'
 
 export type AiFillSource = 'ai' | 'local'
 
@@ -131,6 +144,13 @@ export function localPayloadFromEntries(section: AiDropFillSection, entries: Par
           tillNow: false,
         })),
       }
+    case 'entries':
+      return {
+        entries: entries.map((e) => ({
+          title: e.title,
+          description: e.description,
+        })),
+      }
     case 'experience':
       return {
         experience: entries.map((e) => ({
@@ -188,6 +208,8 @@ type Props = {
   profileId?: string | null
   accent?: string
   hint?: string
+  /** Tab name + fields, so AI fills generic "entries" / "content" for the right tab. */
+  context?: TabFillContext
 }
 
 /** Drop a doc/image or paste text — AI fills list entries via fill-section when `section` is set. */
@@ -199,7 +221,10 @@ export function AiDropFillZone({
   profileId,
   accent = 'indigo',
   hint = 'Drop a document or paste text — AI arranges titles & details into entries',
+  context,
 }: Props) {
+  /** Friendly name for messages ("Events", "Mission Statement") instead of the API scope. */
+  const sectionLabel = context?.tabName?.trim() || section
   const inputRef = useRef<HTMLInputElement>(null)
   const [dragOver, setDragOver] = useState(false)
   const [phase, setPhase] = useState<BusyPhase>('idle')
@@ -225,7 +250,7 @@ export function AiDropFillZone({
     const count = countFillPayloadEntries(section, payload)
     if (!count) {
       const emptyMsg =
-        note || `AI found no ${section} entries in that material. Try a clearer document or more specific text.`
+        note || `AI found no ${sectionLabel} entries in that material. Try a clearer document or more specific text.`
       setMsg({ tone: 'err', text: emptyMsg })
       notify.warning(emptyMsg, { title: 'Nothing to fill' })
       return
@@ -255,9 +280,13 @@ export function AiDropFillZone({
       }
     }
     const success =
-      source === 'local'
-        ? `Filled ${count} entr${count === 1 ? 'y' : 'ies'} from your text (local parse).`
-        : `AI filled ${count} entr${count === 1 ? 'y' : 'ies'}.`
+      section === 'content'
+        ? source === 'local'
+          ? `Filled ${sectionLabel} from your text (local parse).`
+          : `AI filled ${sectionLabel}.`
+        : source === 'local'
+          ? `Filled ${count} entr${count === 1 ? 'y' : 'ies'} from your text (local parse).`
+          : `AI filled ${count} entr${count === 1 ? 'y' : 'ies'}.`
     setMsg({ tone: 'ok', text: success })
     notify.success(success, { title: 'AI Auto-fill' })
     setPaste('')
@@ -265,6 +294,18 @@ export function AiDropFillZone({
   }
 
   const applyLocalPaste = (text: string, aiErrorNote?: string) => {
+    if (section === 'content') {
+      const content = localContentFromText(text)
+      if (!content) {
+        const fail = 'Paste some text to fill this section.'
+        setMsg({ tone: 'err', text: fail })
+        notify.error(fail, { title: 'Auto-fill' })
+        return
+      }
+      if (aiErrorNote) notify.warning(aiErrorNote, { title: 'AI unavailable' })
+      deliver({ content }, 'local')
+      return
+    }
     const entries = parseEntriesFromText(text)
     const payload = localPayloadFromEntries(section, entries)
     if (!payload) {
@@ -298,13 +339,16 @@ export function AiDropFillZone({
             data?: SectionFillPayload
             message?: string
             section?: string
-          }>(profileId, section, text, files, mode)
+          }>(profileId, section, text, files, mode, context)
         : await (() => {
             const form = new FormData()
             form.set('section', section)
             form.set('bodyMode', mode)
             if (hasText) form.set('text', text.trim())
-            form.set('currentDraft', JSON.stringify(currentDraft || {}))
+            form.set(
+              'currentDraft',
+              JSON.stringify(context ? { tab: context, draft: currentDraft || {} } : currentDraft || {})
+            )
             for (const file of files) form.append('files', file)
             return cardAgentForm<{
               payload?: SectionFillPayload
@@ -331,7 +375,7 @@ export function AiDropFillZone({
         }
         const emptyMsg =
           (typeof json.message === 'string' && json.message) ||
-          `No ${section} found in this document. Try another file or paste the list as text.`
+          `No ${sectionLabel} found in this document. Try another file or paste the list as text.`
         setMsg({ tone: 'err', text: emptyMsg })
         notify.warning(emptyMsg, { title: 'Nothing to fill' })
         return

@@ -183,6 +183,12 @@ export function mapFaqsFromPayload(payload: SectionFillPayload): VCardFaqEntry[]
   return out
 }
 
+function hasEntryText(row: unknown): boolean {
+  if (!row || typeof row !== 'object') return false
+  const r = row as Record<string, unknown>
+  return Boolean(String(r.title || '').trim() || stripTagsForMatch(String(r.description || '')))
+}
+
 /** Count list entries in a fill-section payload for a given section. */
 export function countFillPayloadEntries(section: string, payload: SectionFillPayload): number {
   if (section === 'personal') {
@@ -199,6 +205,11 @@ export function countFillPayloadEntries(section: string, payload: SectionFillPay
   if (section === 'reviews') return mapReviewsFromPayload(payload).length
   if (section === 'blogs') return mapBlogsFromPayload(payload).length
   if (section === 'faqs') return mapFaqsFromPayload(payload).length
+  if (section === 'entries') return Array.isArray(payload.entries) ? payload.entries.filter(hasEntryText).length : 0
+  if (section === 'content') {
+    const c = payload.content
+    return c && typeof c === 'object' && hasEntryText(c) ? 1 : 0
+  }
 
   const key =
     section === 'skills'

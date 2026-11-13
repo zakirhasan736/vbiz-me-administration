@@ -1,5 +1,6 @@
 'use client'
 
+import { AiDropFillZone, type AiFilledResult } from '@/components/AiDropFillZone'
 import { RichTextEditor } from '@/components/editor/RichTextEditor'
 import { MediaFileUploader } from '@/components/media/MediaFileUploader'
 import { MediaSourceActions } from '@/components/MediaSourceActions'
@@ -15,6 +16,12 @@ import { HideFromPublicCardButton } from '@/components/vcard/HideFromPublicCardB
 import { HideOwnerMediaToggle } from '@/components/vcard/HideOwnerMediaToggle'
 import { VCardDateInput } from '@/components/vcard/VCardDateInput'
 import { useExpandableEntryList } from '@/hooks/useExpandableEntryList'
+import {
+  entriesToSectionPosts,
+  mapContentFromPayload,
+  mapEntriesFromPayload,
+  type TabFillContext,
+} from '@/lib/ai/genericTabFill'
 import { isCorporateMemberEditorCard } from '@/lib/corporateCardDuplicate'
 import { stripHtml } from '@/lib/htmlText'
 import {
@@ -248,6 +255,41 @@ export function SectionPostsEditorPanel({
     setPosts(postsRef.current.map((p) => (p.id === id ? { ...p, ...patch } : p)))
   }
 
+  // AI Auto-fill: single-item tabs fill their one form; list tabs add one item per entry found.
+  const aiFillContext: TabFillContext = {
+    tabName: sectionTitle,
+    fields: schema.fields
+      .filter((field) => field !== 'active' && field !== 'rating')
+      .map((field) => (field === 'featuredImage' ? 'imageUrl' : field)),
+  }
+
+  const applyAiFill = (result: AiFilledResult) => {
+    if (isSingleItem) {
+      const content = mapContentFromPayload(result.payload)
+      if (!content) return
+      const target = visiblePosts[0]
+      if (target) {
+        patchPost(target.id, {
+          title: content.title || target.title,
+          description: content.description || target.description,
+        })
+        expandNew(postEntryKey(target))
+        return
+      }
+      const created = { ...createDefaultSectionPostItem(), title: content.title, description: content.description }
+      commitVisible([created])
+      expandNew(postEntryKey(created))
+      return
+    }
+    let created = entriesToSectionPosts(mapEntriesFromPayload(result.payload), schema.fields)
+    if (schema.maxItems != null) {
+      created = created.slice(0, Math.max(0, schema.maxItems - posts.length))
+    }
+    if (!created.length) return
+    commitVisible([...created, ...visiblePosts])
+    expandNew(postEntryKey(created[0]!))
+  }
+
   return (
     <div className="animate-in fade-in mx-auto flex h-full w-full max-w-7xl flex-col pb-12 duration-500">
       <div className={`mb-8 rounded-3xl border p-6 ${a.headerBorder} ${a.headerBg}`}>
@@ -301,6 +343,22 @@ export function SectionPostsEditorPanel({
           </button>
         ) : null}
       </div>
+
+      {!lockOwnerForm && (isSingleItem || canAdd) ? (
+        <AiDropFillZone
+          section={isSingleItem ? 'content' : 'entries'}
+          profileId={cardId}
+          context={aiFillContext}
+          currentDraft={{ [schema.key]: visiblePosts }}
+          accent={resolveAccent(schema.accentClass) === 'violet' ? 'violet' : 'amber'}
+          hint={
+            isSingleItem
+              ? `Drop a document or paste text — AI fills the ${sectionTitle} heading and full text`
+              : `Drop a document or paste a list — AI creates one ${sectionTitle} item per entry`
+          }
+          onFilled={applyAiFill}
+        />
+      ) : null}
 
       <div className="flex flex-1 flex-col">
         {lockOwnerForm ? (
