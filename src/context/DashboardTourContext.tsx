@@ -115,7 +115,7 @@ export function DashboardTourProvider({ children }: { children: ReactNode }) {
     },
     [user]
   )
-
+ 
   useEffect(() => {
     dashboardAutoStarted.current = false
     createAutoStarted.current = false
