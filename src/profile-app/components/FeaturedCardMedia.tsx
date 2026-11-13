@@ -1,6 +1,8 @@
 'use client'
 
+import { isDirectVideoUrl, resolveEmbedVideoUrl } from '@/lib/media/pastedMediaUrl'
 import type { ProfileMediaFrame } from '@/lib/media/profileMediaFrame'
+import { FeatureMediaEmbed } from '@/profile-app/components/FeatureMediaEmbed'
 import { PositionedFeatureMedia } from '@/profile-app/components/PositionedFeatureMedia'
 import { cn } from '@/utils/cn'
 
@@ -34,6 +36,14 @@ export function FeaturedCardMedia({
   const url = src.trim()
   if (!url) return null
 
+  // Pasted YouTube / Vimeo links need a player, not <video>.
+  const embedUrl = resolveEmbedVideoUrl(url)
+  if (embedUrl) {
+    return <FeatureMediaEmbed embedUrl={embedUrl} title={alt} className={className} />
+  }
+  // Many sections don't pass `video`; a pasted .mp4/.webm must still play, not render as <img>.
+  const playVideo = video || isDirectVideoUrl(url)
+
   if (frame) {
     return (
       <div className={cn('w-full overflow-hidden bg-black', className)}>
@@ -41,7 +51,7 @@ export function FeaturedCardMedia({
           src={url}
           alt={alt}
           frame={frame}
-          video={video}
+          video={playVideo}
           className={mediaClassName || 'h-full w-full object-contain object-center'}
         />
       </div>
@@ -50,7 +60,7 @@ export function FeaturedCardMedia({
 
   return (
     <div className={cn('relative w-full overflow-hidden bg-black', unframedHeightClassName, className)}>
-      {video ? (
+      {playVideo ? (
         <video
           src={url}
           className={mediaClassName || 'h-full w-full object-cover object-center'}

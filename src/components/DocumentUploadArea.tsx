@@ -2,6 +2,7 @@
 
 import { MediaSourceActions, type MediaSourceMode } from '@/components/MediaSourceActions'
 import { ReorderList, type DragHandleProps } from '@/components/ReorderList'
+import { normalizePastedMediaUrl, validatePastedMediaUrl } from '@/lib/media/pastedMediaUrl'
 import { MediaUploadError, uploadMediaWithProgress } from '@/lib/media/uploadMediaWithProgress'
 import { cn } from '@/utils/cn'
 import { File, FileText, GripVertical, Image as ImageIcon, Loader2, Trash2, Upload } from 'lucide-react'
@@ -55,6 +56,8 @@ type Props = {
   /** When set, uploads to media API instead of blob URLs. */
   profileId?: string | null
   attachmentType?: string
+  /** Show a "paste an image URL" field so owners can use their own hosted images. */
+  urlPaste?: boolean
 }
 
 export function DocumentUploadArea({
@@ -67,9 +70,11 @@ export function DocumentUploadArea({
   mediaAssist = 'image',
   profileId,
   attachmentType = 'Certificate Document',
+  urlPaste = false,
 }: Props) {
   const resolvedHint = hint || 'Image, PDF, TXT, DOC — no size limit'
   const inputRef = useRef<HTMLInputElement>(null)
+  const [urlDraft, setUrlDraft] = useState('')
   const [dragOver, setDragOver] = useState(false)
   const [error, setError] = useState('')
   const [uploading, setUploading] = useState(false)
@@ -135,6 +140,41 @@ export function DocumentUploadArea({
       </button>
     </div>
   )
+
+  /** Add a pasted image link (their own CDN, Unsplash…) without uploading it. */
+  const applyUrl = () => {
+    const url = normalizePastedMediaUrl(urlDraft)
+    if (!url) {
+      setError('Paste a full link that starts with https://')
+      return
+    }
+    const typeError = validatePastedMediaUrl(url, { image: true, video: false, audio: false, document: false })
+    if (typeError) {
+      setError(typeError)
+      return
+    }
+    if (files.some((item) => item.url === url)) {
+      setError('That image is already in the list.')
+      return
+    }
+    setError('')
+    let name = 'Image'
+    try {
+      const parsed = new URL(url)
+      name = decodeURIComponent(parsed.pathname.split('/').filter(Boolean).pop() || parsed.hostname)
+    } catch {
+      /* keep default */
+    }
+    const doc: UploadedDoc = {
+      id: `url_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      name,
+      url,
+      type: 'image/*',
+      size: 0,
+    }
+    onChange(multiple ? [...files, doc] : [doc])
+    setUrlDraft('')
+  }
 
   const ingest = async (list: FileList | File[]) => {
     const incoming = Array.from(list)
@@ -253,6 +293,38 @@ export function DocumentUploadArea({
           }}
         />
       )}
+
+      {urlPaste ? (
+        <div className="flex gap-2">
+          <input
+            type="url"
+            inputMode="url"
+            value={urlDraft}
+            onChange={(e) => {
+              setUrlDraft(e.target.value)
+              if (error) setError('')
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                applyUrl()
+              }
+            }}
+            aria-label="Paste an image URL"
+            placeholder="Or paste an image URL"
+            disabled={uploading}
+            className="w-full rounded-2xl border border-slate-200/80 bg-white px-4 py-3 text-[13px] font-medium text-slate-900 shadow-sm outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 dark:border-white/10 dark:bg-[#0b0f19] dark:text-white"
+          />
+          <button
+            type="button"
+            onClick={applyUrl}
+            disabled={uploading || !urlDraft.trim()}
+            className="shrink-0 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-[12px] font-bold text-slate-700 transition hover:bg-slate-100 disabled:opacity-50 dark:border-white/10 dark:bg-white/5 dark:text-slate-200"
+          >
+            Add URL
+          </button>
+        </div>
+      ) : null}
 
       {error && <p className="text-[12px] font-semibold text-rose-500">{error}</p>}
 

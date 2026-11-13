@@ -1,5 +1,6 @@
 'use client'
 
+import { resolveEmbedVideoUrl } from '@/lib/media/pastedMediaUrl'
 import {
   parseProfileMediaFrame,
   profileFeatureMediaAspectRatio,
@@ -9,6 +10,7 @@ import {
   type ProfileMediaFrame,
 } from '@/lib/media/profileMediaFrame'
 import { isVideoUrl } from '@/lib/mediaUrl'
+import { FeatureMediaEmbed } from '@/profile-app/components/FeatureMediaEmbed'
 import { useEffect, useRef, useState } from 'react'
 
 type PositionedFeatureMediaProps = {
@@ -26,7 +28,8 @@ type PositionedFeatureMediaProps = {
  * Cover → pixel pan/zoom. Height controls the frame aspect ratio.
  */
 export function PositionedFeatureMedia({ src, alt, frame, className, video = false }: PositionedFeatureMediaProps) {
-  const playVideo = video || isVideoUrl(src)
+  const embedUrl = resolveEmbedVideoUrl(src)
+  const playVideo = !embedUrl && (video || isVideoUrl(src))
   const boxRef = useRef<HTMLDivElement>(null)
   const [mediaSizeState, setMediaSizeState] = useState<{ src: string; size: MediaPixelSize | null }>({
     src,
@@ -62,6 +65,11 @@ export function PositionedFeatureMedia({ src, alt, frame, className, video = fal
     observer.observe(box)
     return () => observer.disconnect()
   }, [resolved, usePixelMath])
+
+  // YouTube / Vimeo: a player in a 16:9 frame (crop/zoom frames apply to files only).
+  if (embedUrl) {
+    return <FeatureMediaEmbed embedUrl={embedUrl} title={alt} />
+  }
 
   if (!resolved) {
     if (playVideo) {

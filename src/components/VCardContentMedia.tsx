@@ -93,8 +93,9 @@ export function TabContentMedia() {
           files={galleryDocs}
           accent="violet"
           label="Gallery images"
-          hint="Drag & drop images — PNG, JPG, WEBP"
+          hint="Drag & drop images — PNG, JPG, WEBP — or paste an image URL below"
           mediaAssist="image"
+          urlPaste
           profileId={cardId}
           attachmentType="Content Media Gallery"
           onChange={(files) =>

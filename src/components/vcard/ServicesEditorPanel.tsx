@@ -333,7 +333,6 @@ export function ServicesEditorPanel({
                             profileId={profileId}
                             attachmentType="Service Featured"
                             accept="image/*"
-                            allowUrlPaste={false}
                             hint="Image or video • no size limit"
                             value={service.featuredImage}
                             mediaFrame={service.mediaFrame}
