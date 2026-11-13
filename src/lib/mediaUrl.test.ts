@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { detectGalleryMediaKind, detectPortfolioType, isAudioUrl, isDocumentUrl, isVideoUrl } from './mediaUrl'
+import {
+  detectGalleryMediaKind,
+  detectPortfolioType,
+  isAudioUrl,
+  isDocumentUrl,
+  isImageUrl,
+  isVideoUrl,
+} from './mediaUrl'
 
 describe('isVideoUrl', () => {
   it('treats uploaded files and Cloudinary video paths as video', () => {
@@ -57,5 +64,24 @@ describe('detectGalleryMediaKind', () => {
   it('infers from featured URL', () => {
     expect(detectGalleryMediaKind('https://cdn.example.com/clip.mp4')).toBe('video')
     expect(detectGalleryMediaKind('https://cdn.example.com/song.wav')).toBe('audio')
+  })
+})
+
+describe('isImageUrl', () => {
+  it('recognizes image files, format hints and image-only CDNs', () => {
+    expect(isImageUrl('https://cdn.example/a.JPG')).toBe(true)
+    expect(isImageUrl('https://cdn.example/a.webp?v=2')).toBe(true)
+    expect(isImageUrl('https://cdn.example/render?id=1&fm=png')).toBe(true)
+    expect(
+      isImageUrl('https://images.unsplash.com/photo-1550684848-fac1c5b4e853?auto=format&fit=crop&q=80&w=300&h=200')
+    ).toBe(true)
+  })
+
+  it('never classifies videos or unknown URLs as images', () => {
+    expect(isImageUrl('https://cdn.example/intro.mp4')).toBe(false)
+    expect(isImageUrl('https://app.vbizme.com/storage/ecard/backgroundVideos/59/Untitled design-30.mp4')).toBe(false)
+    expect(isImageUrl('https://youtu.be/abc')).toBe(false)
+    expect(isImageUrl('https://cdn.example/file')).toBe(false)
+    expect(isImageUrl('')).toBe(false)
   })
 })

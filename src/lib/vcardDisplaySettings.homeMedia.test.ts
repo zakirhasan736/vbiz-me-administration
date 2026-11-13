@@ -171,3 +171,30 @@ describe('getPageColors header visibility', () => {
     expect(getPageColors(settings, 'dark').headerColor).toBe('#ff40ff')
   })
 })
+
+describe('getHomeMediaUrls intro images', () => {
+  const unsplash = 'https://images.unsplash.com/photo-1550684848-fac1c5b4e853?auto=format&fit=crop&q=80&w=300&h=200'
+  const settingsWithIntro = (introFile: string, youtube = ''): VCardDisplaySettings => ({
+    globalEnabled: true,
+    fields: {
+      'Intro vCard Video': { visible: true, customValue: introFile },
+      'Intro YouTube vCard Video Link': { visible: Boolean(youtube), customValue: youtube },
+    },
+  })
+
+  it('never treats a still image in the intro field as the intro video', () => {
+    const media = getHomeMediaUrls(settingsWithIntro(unsplash))
+    expect(media.introVideo).toBe('')
+    expect(media.introPlayUrl).toBe('')
+  })
+
+  it('falls back to the YouTube intro when the file field holds an image', () => {
+    const media = getHomeMediaUrls(settingsWithIntro('https://cdn.example/still.png', 'https://youtu.be/abc'))
+    expect(media.introPlayUrl).toBe('https://youtu.be/abc')
+  })
+
+  it('still plays legacy storage videos with spaces in the name', () => {
+    const legacy = 'https://app.vbizme.com/storage/ecard/videos/57/01.EMAC_Cargo Truck Logo_ V2 VERTICAL.mp4'
+    expect(getHomeMediaUrls(settingsWithIntro(legacy)).introVideo).toBe(legacy)
+  })
+})
