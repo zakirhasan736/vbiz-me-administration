@@ -46,6 +46,15 @@ const IGNORED_MESSAGE_PATTERNS: RegExp[] = [
   /no listener:\s*tabs:outgoing\.message\.ready/i,
   /invalid call to runtime\.sendMessage/i,
   /tabs?:outgoing\.message/i,
+  // Facebook / Instagram in-app browser on Android: its own injected script
+  // (iabjs://…) loses its native bridge when the webview is torn down.
+  /java object is gone/i,
+  /error invoking postMessage/i,
+  // Safari rejects a second Picture-in-Picture toggle while the first is still
+  // animating. The video keeps playing; nothing for us to fix.
+  /processing a picture-in-picture request/i,
+  // A rejection whose whole message is "Na" / "N/A": no stack, no page, not diagnosable.
+  /^n\/?a$/i,
 ]
 
 export function sentryReasonToMessage(reason: unknown): string {
