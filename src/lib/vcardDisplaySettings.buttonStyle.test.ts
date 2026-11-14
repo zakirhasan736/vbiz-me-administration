@@ -82,4 +82,17 @@ describe('My Info action button theme defaults', () => {
   it('leaves public My Info chrome to theme tokens when no owner override is saved', () => {
     expect(displayMyInfoActionChromeStyle({ visible: true }, 'dark', { bg: '#f96a62', text: '#ffffff' })).toEqual({})
   })
+
+  it('does not freeze My Info fill to Global defaults when only text is overridden', () => {
+    const style = displayMyInfoActionChromeStyle({ visible: true, dark: { textColor: '#ff40ff' } }, 'dark', {
+      bg: '#f96a62',
+      text: '#ffffff',
+    }) as Record<string, string>
+    expect(style['--vbiz-my-info-fg']).toBe('#ff40ff')
+    expect(style['--vbiz-control-fg']).toBe('#ff40ff')
+    expect(style.color).toBe('#ff40ff')
+    expect(style['--vbiz-my-info-fill']).toBeUndefined()
+    expect(style['--vbiz-control-fill']).toBeUndefined()
+    expect(style.backgroundColor).toBeUndefined()
+  })
 })

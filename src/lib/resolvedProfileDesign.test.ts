@@ -1,8 +1,10 @@
 import { designToCssVars, resolveProfileDesign } from '@/lib/resolvedProfileDesign'
 import { getDefaultThemeConfig } from '@/lib/theme/cardThemeContract'
+import { buildCardThemeStyleSheet } from '@/lib/theme/cardThemeCssVars'
 import {
   applyEditorSettingsToThemeConfig,
   buildPreviewMatchedThemeConfig,
+  patchModeBrandColor,
   resetBrandThemeColors,
 } from '@/lib/theme/resolveCardTheme'
 import type { DesignSettingsState } from '@/redux/features/designSettings/designSettings.slice'
@@ -148,6 +150,53 @@ describe('applyEditorSettingsToThemeConfig', () => {
 
     expect(next.appearance.fontFamily).toBe('poppins')
     expect(next.appearance.buttonShadow).toBe('strong')
+  })
+})
+
+describe('patchModeBrandColor', () => {
+  it('keeps Banner and TopNav area color overrides when Global Primary changes', () => {
+    const stock = getDefaultThemeConfig('v3')
+    const withAreas = {
+      ...stock,
+      components: {
+        ...stock.components,
+        sectionBanner: { dark: { bg: '#112233', title: '#abcdef', variant: 'solid' as const } },
+        topNavBar: { dark: { bg: '#445566', item: '#778899', variant: 'solid' as const } },
+        contentCard: { dark: { bg: '#99aabb', title: '#ccddee' } },
+      },
+    }
+    const next = patchModeBrandColor(withAreas, 'dark', 'primary', '#ff40ff')
+    expect(next.colors.dark.primary).toBe('#ff40ff')
+    expect(next.components.sectionBanner?.dark?.bg).toBe('#112233')
+    expect(next.components.sectionBanner?.dark?.title).toBe('#abcdef')
+    expect(next.components.topNavBar?.dark?.bg).toBe('#445566')
+    expect(next.components.topNavBar?.dark?.item).toBe('#778899')
+    expect(next.components.contentCard?.dark?.bg).toBe('#99aabb')
+  })
+})
+
+describe('banner / Pages Header cascade tokens', () => {
+  it('emits banner override tokens only when Banner panel colors are saved', () => {
+    const stock = getDefaultThemeConfig('v3')
+    const withoutOwner = buildCardThemeStyleSheet(stock, 'dark')
+    expect(withoutOwner).not.toContain('--vbiz-banner-override-bg:')
+    expect(withoutOwner).not.toContain('--vbiz-banner-title-override:')
+
+    const withOwner = buildCardThemeStyleSheet(
+      {
+        ...stock,
+        components: {
+          ...stock.components,
+          sectionBanner: { dark: { bg: '#112233', title: '#abcdef' } },
+        },
+      },
+      'dark'
+    )
+    expect(withOwner).toContain('--vbiz-banner-override-bg: #112233')
+    expect(withOwner).toContain('--vbiz-banner-title-override: #abcdef')
+    expect(withOwner).toContain(
+      'var(--vbiz-banner-override-bg, var(--vbiz-page-header-fill, var(--vbiz-banner-bg, transparent)))'
+    )
   })
 })
 

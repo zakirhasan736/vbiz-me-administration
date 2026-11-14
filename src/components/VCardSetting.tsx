@@ -1117,7 +1117,7 @@ const FieldCard: React.FC<{
                   className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 px-3 py-3 text-[.75rem] font-semibold text-slate-600 transition-colors hover:bg-slate-50 dark:border-white/10 dark:text-slate-300 dark:hover:bg-white/5"
                 >
                   <RotateCcw className="h-3.5 w-3.5" />
-                  Reset to Template colors
+                  Reset to global colors
                 </button>
               ) : null}
             </div>
@@ -2039,7 +2039,21 @@ export function TabSetting({ basePath, settingsTab = 'general', cardId }: TabSet
   const patchDisplay = (next: VCardDisplaySettings) => updateData('displaySettings', next)
 
   const patchField = (key: string, patch: Partial<DisplayFieldConfig>) => {
-    const next = patchDisplayField(displayRef.current, key, patch)
+    let next = patchDisplayField(displayRef.current, key, patch)
+    // Share Btn is the legacy twin of Share — keep colors/visibility in sync so
+    // mergeDisplayFieldConfigs and public/preview chrome update at runtime.
+    if (key === 'Share') {
+      const shareSync: Partial<DisplayFieldConfig> = {}
+      if ('visible' in patch) shareSync.visible = patch.visible
+      if ('textColor' in patch) shareSync.textColor = patch.textColor
+      if ('backgroundColor' in patch) shareSync.backgroundColor = patch.backgroundColor
+      if ('iconColor' in patch) shareSync.iconColor = patch.iconColor
+      if ('light' in patch) shareSync.light = patch.light
+      if ('dark' in patch) shareSync.dark = patch.dark
+      if (Object.keys(shareSync).length > 0) {
+        next = patchDisplayField(next, 'Share Btn', shareSync)
+      }
+    }
     displayRef.current = next
     patchDisplay(next)
   }
@@ -2383,8 +2397,8 @@ export function TabSetting({ basePath, settingsTab = 'general', cardId }: TabSet
                         patchDisplay(setCategoryResetColors(display, keys))
                         notify.info(
                           activeTab === 'home'
-                            ? 'Home colors reset — heading/description use brand defaults (dark: white + primary; light: secondary + primary).'
-                            : 'Colors reset to Template primary / secondary / accent defaults.'
+                            ? 'Home colors reset — heading/description use global brand defaults (dark: white + primary; light: secondary + primary).'
+                            : 'Colors reset to global Primary / Secondary / Accent.'
                         )
                       }}
                       className="inline-flex items-center gap-2 rounded-3xl border border-slate-200 bg-white px-5 py-4 text-[.8125rem] font-bold text-slate-900 shadow-sm transition-colors hover:bg-slate-50 dark:border-white/5 dark:bg-[#070a13] dark:text-white dark:hover:bg-white/5"

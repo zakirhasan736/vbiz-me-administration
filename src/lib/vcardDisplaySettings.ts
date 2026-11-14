@@ -864,21 +864,25 @@ export function displaySocialChromeStyle(
   defaults?: ChromeColorDefaults,
   options?: ChromeStyleOptions
 ): CSSProperties | undefined {
+  void defaults
+  void options
   // Ignore template defaults here — CardThemeStyles already paints social from appearance.buttonStyle.
   const { fill, fg } = resolveFieldModeColors(config, mode)
   const userFill = storedCssColor(fill)
   const userFg = storedCssColor(fg)
   if (!userFill && !userFg) return undefined
-  const brandFill = userFill || (defaults?.bg ? storedCssColor(defaults.bg) || defaults.bg.trim() : undefined)
-  const brandFg = userFg || (defaults?.text ? storedCssColor(defaults.text) || defaults.text.trim() : undefined)
-  const painted = styleAwareChromePaint(brandFill, brandFg, options?.buttonStyle, mode, options?.outlineCompanion)
-  const style: CSSPropertiesWithVariables = {}
-  if (painted.fill) {
-    style['--vbiz-social-fill'] = painted.fill
-    style['--vbiz-social-border-color'] = painted.fill
+  // Exact hex from Card Settings for the active light/dark mode. Beats Global Color
+  // --vbiz-social-* on the profile root (Template Settings still owns radius / blur).
+  const style: CSSPropertiesWithVariables = { backgroundImage: 'none' }
+  if (userFill) {
+    style['--vbiz-social-fill'] = userFill
+    style['--vbiz-social-border-color'] = userFill
+    style.backgroundColor = userFill
+    style.borderColor = userFill
   }
-  if (painted.fg) {
-    style['--vbiz-social-fg'] = painted.fg
+  if (userFg) {
+    style['--vbiz-social-fg'] = userFg
+    style.color = userFg
   }
   return style
 }
@@ -889,20 +893,28 @@ export function displayIconChromeStyle(
   defaults?: ChromeColorDefaults,
   options?: ChromeStyleOptions
 ): CSSProperties | undefined {
+  void defaults
+  void options
   const { fill, fg } = resolveFieldModeColors(config, mode)
   const userFill = storedCssColor(fill)
   const userFg = storedCssColor(fg)
   if (!userFill && !userFg) return undefined
-  const brandFill = userFill || (defaults?.bg ? storedCssColor(defaults.bg) || defaults.bg.trim() : undefined)
-  const brandFg = userFg || (defaults?.text ? storedCssColor(defaults.text) || defaults.text.trim() : undefined)
-  const painted = styleAwareChromePaint(brandFill, brandFg, options?.buttonStyle, mode, options?.outlineCompanion)
-  const style: CSSPropertiesWithVariables = {}
-  if (painted.fill) {
-    style['--vbiz-btn-secondary-fill'] = painted.fill
-    style['--vbiz-btn-secondary-border-color'] = painted.fill
+  // Card Settings override layer (--vbiz-control-*) beats Global Color secondary tokens
+  // on .vbiz-icon-btn. Exact hex for the active light/dark mode — no glass/outline wash,
+  // and do not inject Template defaults for the unset channel.
+  const style: CSSPropertiesWithVariables = { backgroundImage: 'none' }
+  if (userFill) {
+    style['--vbiz-control-fill'] = userFill
+    style['--vbiz-control-border-color'] = userFill
+    style['--vbiz-btn-secondary-fill'] = userFill
+    style['--vbiz-btn-secondary-border-color'] = userFill
+    style.backgroundColor = userFill
+    style.borderColor = userFill
   }
-  if (painted.fg) {
-    style['--vbiz-btn-secondary-fg'] = painted.fg
+  if (userFg) {
+    style['--vbiz-control-fg'] = userFg
+    style['--vbiz-btn-secondary-fg'] = userFg
+    style.color = userFg
   }
   return style
 }
@@ -963,14 +975,16 @@ export function primaryChromeDefaultsForMode(
 
 /**
  * Solid pill chrome for My Info Call / Text / Email.
- * Saved light/dark colors replace Template secondary (action) defaults for that button only.
+ * Saved light/dark colors replace Global secondary for that button only.
  * When nothing is saved, omit inline paint so theme CSS (`--vbiz-btn-secondary-fill`) applies.
+ * Only emit channels the owner saved — do not freeze the other channel to Template defaults.
  */
 export function displayMyInfoActionChromeStyle(
   config: DisplayFieldConfig | undefined,
   mode: ThemeMode,
   defaults: { bg: string; text: string }
 ): CSSProperties {
+  void defaults
   const { fill, fg } = resolveFieldModeColors(config, mode, { preferText: true })
   const userFill = storedCssColor(fill)
   const userFg = storedCssColor(fg)
@@ -978,19 +992,19 @@ export function displayMyInfoActionChromeStyle(
     // No owner override — public card uses theme secondary / Button type tokens.
     return {}
   }
-  const backgroundColor = userFill || storedCssColor(defaults.bg) || defaults.bg
-  const color = userFg || storedCssColor(defaults.text) || defaults.text
-  const style: CSSPropertiesWithVariables = {
-    backgroundColor,
-    color,
-    backgroundImage: 'none',
+  const style: CSSPropertiesWithVariables = { backgroundImage: 'none' }
+  if (userFill) {
+    style.backgroundColor = userFill
+    style['--vbiz-control-fill'] = userFill
+    style['--vbiz-my-info-fill'] = userFill
+    style['--vbiz-btn-secondary-fill'] = userFill
   }
-  style['--vbiz-control-fill'] = backgroundColor
-  style['--vbiz-control-fg'] = color
-  style['--vbiz-my-info-fill'] = backgroundColor
-  style['--vbiz-my-info-fg'] = color
-  style['--vbiz-btn-secondary-fill'] = backgroundColor
-  style['--vbiz-btn-secondary-fg'] = color
+  if (userFg) {
+    style.color = userFg
+    style['--vbiz-control-fg'] = userFg
+    style['--vbiz-my-info-fg'] = userFg
+    style['--vbiz-btn-secondary-fg'] = userFg
+  }
   return style
 }
 

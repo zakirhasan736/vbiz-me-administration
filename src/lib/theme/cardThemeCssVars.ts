@@ -245,9 +245,12 @@ export function cardThemeCssVars(config: CardThemeConfig, mode: ThemeMode): CSSP
       ? 'none'
       : `linear-gradient(135deg, ${vars['--vbiz-nav-gradient-from']} 0%, ${vars['--vbiz-nav-gradient-to']} 100%)`
 
-  // Always honor resolved (derived + override) title/description — not only when a snapshot exists.
-  if (banner.title) vars['--vbiz-banner-title-override'] = banner.title
-  if (banner.description) vars['--vbiz-banner-description-override'] = banner.description
+  // Explicit Banner panel colors only — derived title/bg stay on --vbiz-banner-*.
+  // Cascade: banner override → Pages Header → Global derived.
+  const bannerOwner = config.components.sectionBanner?.[mode]
+  if (bannerOwner?.bg?.trim()) vars['--vbiz-banner-override-bg'] = bannerOwner.bg.trim()
+  if (bannerOwner?.title?.trim()) vars['--vbiz-banner-title-override'] = bannerOwner.title.trim()
+  if (bannerOwner?.description?.trim()) vars['--vbiz-banner-description-override'] = bannerOwner.description.trim()
 
   const bannerFrom = banner.gradientFrom || set.primary
   const bannerTo = banner.gradientTo || set.secondary
@@ -530,11 +533,13 @@ ${themeUi('.vbiz-social:hover')} {
 }
 
 /* ---------- Toolbar / icon buttons — Template Settings style + corner + shadow ---------- */
+/* Card Settings (Share, 1-on-1, rails…) set --vbiz-control-* on the element.
+   Those beat Global Color --vbiz-btn-secondary-* from the profile root. */
 ${themeUi('.vbiz-icon-btn')} {
   border-radius: var(--vbiz-btn-radius, 9999px) !important;
-  border: var(--vbiz-btn-secondary-border-width, 1px) solid var(--vbiz-btn-secondary-border-color, var(--vbiz-accent-border)) !important;
-  background-color: var(--vbiz-btn-secondary-fill, var(--vbiz-accent-subtle)) !important;
-  color: var(--vbiz-btn-secondary-fg, var(--vbiz-accent)) !important;
+  border: var(--vbiz-btn-secondary-border-width, 1px) solid var(--vbiz-control-border-color, var(--vbiz-btn-secondary-border-color, var(--vbiz-accent-border))) !important;
+  background-color: var(--vbiz-control-fill, var(--vbiz-btn-secondary-fill, var(--vbiz-accent-subtle))) !important;
+  color: var(--vbiz-control-fg, var(--vbiz-btn-secondary-fg, var(--vbiz-accent))) !important;
   backdrop-filter: blur(var(--vbiz-btn-secondary-blur, 8px));
   box-shadow: var(--vbiz-btn-shadow, none) !important;
   font-family: var(--vbiz-font, inherit);
@@ -725,11 +730,11 @@ ${themeUi('.vbiz-icon-btn:hover')} {
   color: var(--vbiz-content-card-icon, var(--vbiz-accent)) !important;
 }
 
-/* Banner: Tab banner styles win; Pages Header fill is the fallback gradient start. */
+/* Banner: explicit Banner panel → Pages Header → Global derived. */
 .vbiz-profile-root .vbiz-section-banner,
 .vbiz-profile-root .vbiz-hero-banner,
 .vbiz-profile-root .vbiz-page-header-surface {
-  background-color: var(--vbiz-banner-bg, var(--vbiz-page-header-fill, transparent)) !important;
+  background-color: var(--vbiz-banner-override-bg, var(--vbiz-page-header-fill, var(--vbiz-banner-bg, transparent))) !important;
   background-image: var(--vbiz-banner-bg-image, none) !important;
   background-size: cover !important;
   background-position: var(--vbiz-banner-image-position, center) !important;
@@ -1838,7 +1843,7 @@ ${themeUi('.vbiz-icon-btn:hover')} {
 .vbiz-profile-root.vbiz-theme-light .vbiz-hero-banner,
 .vbiz-profile-root.vbiz-theme-dark .vbiz-hero-banner,
 .vbiz-profile-root.dark .vbiz-hero-banner {
-  background-color: var(--vbiz-banner-bg, var(--vbiz-page-header-fill, transparent)) !important;
+  background-color: var(--vbiz-banner-override-bg, var(--vbiz-page-header-fill, var(--vbiz-banner-bg, transparent))) !important;
   background-image: var(--vbiz-banner-bg-image, none) !important;
   border-style: solid !important;
   border-width: 1px !important;
@@ -1848,7 +1853,7 @@ ${themeUi('.vbiz-icon-btn:hover')} {
 .vbiz-profile-root.vbiz-theme-light .vbiz-page-header-surface,
 .vbiz-profile-root.vbiz-theme-dark .vbiz-page-header-surface,
 .vbiz-profile-root.dark .vbiz-page-header-surface {
-  background-color: var(--vbiz-banner-bg, var(--vbiz-page-header-fill, transparent)) !important;
+  background-color: var(--vbiz-banner-override-bg, var(--vbiz-page-header-fill, var(--vbiz-banner-bg, transparent))) !important;
   background-image: var(--vbiz-banner-bg-image, none) !important;
   color: var(--vbiz-banner-title-override, var(--vbiz-page-header-fg, var(--vbiz-banner-title, #ffffff))) !important;
 }

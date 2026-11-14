@@ -25,6 +25,8 @@ describe('display chrome styles', () => {
 
     expect(style['--vbiz-social-fill']).toBe('#112233')
     expect(style['--vbiz-social-fg']).toBe('#abcdef')
+    expect(style.backgroundColor).toBe('#112233')
+    expect(style.color).toBe('#abcdef')
   })
 
   it('uses light/dark mode colors independently', () => {
@@ -37,15 +39,60 @@ describe('display chrome styles', () => {
     const light = displayIconChromeStyle(config, 'light') as Record<string, string>
     const dark = displayIconChromeStyle(config, 'dark') as Record<string, string>
 
+    expect(light['--vbiz-control-fill']).toBe('#ffffff')
+    expect(light['--vbiz-control-fg']).toBe('#111111')
     expect(light['--vbiz-btn-secondary-fill']).toBe('#ffffff')
     expect(light['--vbiz-btn-secondary-fg']).toBe('#111111')
-    expect(light['--vbiz-control-fill']).toBeUndefined()
+    expect(light.backgroundColor).toBe('#ffffff')
+    expect(light.color).toBe('#111111')
+    expect(dark['--vbiz-control-fill']).toBe('#0b0b0d')
+    expect(dark['--vbiz-control-fg']).toBe('#f5f5f5')
     expect(dark['--vbiz-btn-secondary-fill']).toBe('#0b0b0d')
     expect(dark['--vbiz-btn-secondary-fg']).toBe('#f5f5f5')
-    expect(dark['--vbiz-control-fg']).toBeUndefined()
+    expect(dark.backgroundColor).toBe('#0b0b0d')
+    expect(dark.color).toBe('#f5f5f5')
   })
 
-  it('paints a hex pasted without a hash onto secondary button variables', () => {
+  it('keeps Share / 1-on-1 owner colors exact under glass Template button style', () => {
+    const style = displayIconChromeStyle(
+      {
+        visible: true,
+        dark: { backgroundColor: '#ff40ff', textColor: '#0b0b0d' },
+      },
+      'dark',
+      { bg: '#0f2c4d', text: '#ffffff' },
+      { buttonStyle: 'glass' }
+    ) as Record<string, string> | undefined
+
+    expect(style?.['--vbiz-control-fill']).toBe('#ff40ff')
+    expect(style?.['--vbiz-control-fg']).toBe('#0b0b0d')
+    expect(style?.['--vbiz-btn-secondary-fill']).toBe('#ff40ff')
+    expect(style?.['--vbiz-btn-secondary-fg']).toBe('#0b0b0d')
+    expect(style?.backgroundColor).toBe('#ff40ff')
+    expect(style?.color).toBe('#0b0b0d')
+    expect(String(style?.['--vbiz-control-fill'] ?? '')).not.toContain('color-mix')
+  })
+
+  it('does not freeze Share fill to Global Color defaults when only text is overridden', () => {
+    const style = displayIconChromeStyle(
+      {
+        visible: true,
+        light: { textColor: '#ff40ff' },
+      },
+      'light',
+      { bg: '#0f2c4d', text: '#ffffff' },
+      { buttonStyle: 'solid' }
+    ) as Record<string, string> | undefined
+
+    expect(style?.['--vbiz-control-fg']).toBe('#ff40ff')
+    expect(style?.['--vbiz-btn-secondary-fg']).toBe('#ff40ff')
+    expect(style?.color).toBe('#ff40ff')
+    expect(style?.['--vbiz-control-fill']).toBeUndefined()
+    expect(style?.['--vbiz-btn-secondary-fill']).toBeUndefined()
+    expect(style?.backgroundColor).toBeUndefined()
+  })
+
+  it('paints a hex pasted without a hash onto control + secondary button variables', () => {
     const style = displayIconChromeStyle(
       {
         visible: true,
@@ -54,9 +101,10 @@ describe('display chrome styles', () => {
       'dark'
     ) as Record<string, string>
 
+    expect(style['--vbiz-control-fill']).toBe('#a5d49b')
+    expect(style['--vbiz-control-fg']).toBe('#291426')
     expect(style['--vbiz-btn-secondary-fill']).toBe('#a5d49b')
     expect(style['--vbiz-btn-secondary-fg']).toBe('#291426')
-    expect(style['--vbiz-control-fill']).toBeUndefined()
   })
 
   it('keeps an explicit text color when the background is set', () => {

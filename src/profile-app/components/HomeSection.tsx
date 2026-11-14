@@ -447,49 +447,59 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
                         },
                       ]
                     : []),
-                ].map((action, idx) => (
-                  <IconHoverTooltip key={`${action.label}-${idx}`} label={action.label} placement="left">
-                    <motion.button
-                      type="button"
-                      onClick={action.action}
-                      whileHover={{
-                        scale: 1.15,
-                        rotate: idx % 2 === 0 ? 10 : -10,
-                        backgroundColor: accent,
-                        color: 'rgba(0, 0, 0, 1)',
-                        boxShadow: `0 0 20px color-mix(in srgb, ${accent} 40%, transparent)`,
-                      }}
-                      whileTap={{ scale: 0.9 }}
-                      aria-label={action.label}
-                      className="vbiz-icon-btn group/btn border-yellow-primary/50 dark:border-yellow-primary/40 relative flex h-10 w-10 items-center justify-center overflow-visible rounded-full border-2 bg-white/80 text-gray-700 shadow-lg backdrop-blur-2xl transition-all duration-500 dark:bg-black/40 dark:text-gray-300"
-                      style={
-                        action.label === 'Share'
-                          ? shareChrome
-                          : action.label === 'Views'
-                            ? viewsChrome
-                            : action.label === 'Website'
-                              ? websiteChrome
-                              : action.label === 'Language'
-                                ? languageChrome
-                                : action.label === 'Theme'
-                                  ? themeToggleChrome
-                                  : undefined
-                      }
-                    >
-                      {'icon' in action && action.icon ? (
-                        <action.icon
-                          size={22}
-                          className="relative z-10 transition-transform group-hover/btn:scale-110"
-                          strokeWidth={2.5}
-                        />
-                      ) : null}
-                      {'content' in action && action.content ? (
-                        <div className="relative z-10">{action.content}</div>
-                      ) : null}
-                      {'badge' in action ? action.badge : null}
-                    </motion.button>
-                  </IconHoverTooltip>
-                ))}
+                ].map((action, idx) => {
+                  const actionChrome =
+                    action.label === 'Share'
+                      ? shareChrome
+                      : action.label === 'Views'
+                        ? viewsChrome
+                        : action.label === 'Website'
+                          ? websiteChrome
+                          : action.label === 'Language'
+                            ? languageChrome
+                            : action.label === 'Theme'
+                              ? themeToggleChrome
+                              : undefined
+                  return (
+                    <IconHoverTooltip key={`${action.label}-${idx}`} label={action.label} placement="left">
+                      <motion.button
+                        type="button"
+                        onClick={action.action}
+                        whileHover={
+                          actionChrome
+                            ? {
+                                scale: 1.15,
+                                rotate: idx % 2 === 0 ? 10 : -10,
+                                boxShadow: `0 0 20px color-mix(in srgb, ${accent} 40%, transparent)`,
+                              }
+                            : {
+                                scale: 1.15,
+                                rotate: idx % 2 === 0 ? 10 : -10,
+                                backgroundColor: accent,
+                                color: 'rgba(0, 0, 0, 1)',
+                                boxShadow: `0 0 20px color-mix(in srgb, ${accent} 40%, transparent)`,
+                              }
+                        }
+                        whileTap={{ scale: 0.9 }}
+                        aria-label={action.label}
+                        className="vbiz-icon-btn group/btn border-yellow-primary/50 dark:border-yellow-primary/40 relative flex h-10 w-10 items-center justify-center overflow-visible rounded-full border-2 bg-white/80 text-gray-700 shadow-lg backdrop-blur-2xl transition-all duration-500 dark:bg-black/40 dark:text-gray-300"
+                        style={actionChrome}
+                      >
+                        {'icon' in action && action.icon ? (
+                          <action.icon
+                            size={22}
+                            className="relative z-10 transition-transform group-hover/btn:scale-110"
+                            strokeWidth={2.5}
+                          />
+                        ) : null}
+                        {'content' in action && action.content ? (
+                          <div className="relative z-10">{action.content}</div>
+                        ) : null}
+                        {'badge' in action ? action.badge : null}
+                      </motion.button>
+                    </IconHoverTooltip>
+                  )
+                })}
               </div>
             ) : null}
 
@@ -680,8 +690,9 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
                               icon: Share2,
                               tip: 'Share',
                               label: null as string | null,
-                              hover:
-                                '[@media(hover:hover)_and_(pointer:fine)]:hover:bg-blue-500 [@media(hover:hover)_and_(pointer:fine)]:hover:border-blue-500 [@media(hover:hover)_and_(pointer:fine)]:hover:text-white text-blue-500',
+                              hover: shareChrome
+                                ? ''
+                                : '[@media(hover:hover)_and_(pointer:fine)]:hover:bg-blue-500 [@media(hover:hover)_and_(pointer:fine)]:hover:border-blue-500 [@media(hover:hover)_and_(pointer:fine)]:hover:text-white text-blue-500',
                               onClick: () => triggerAction('share'),
                               className: `h-10 w-10 ${HOME_ACTION_XS}`,
                               chrome: shareChrome,
@@ -694,8 +705,9 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
                               icon: Bell,
                               tip: 'Notifications',
                               label: null as string | null,
-                              hover:
-                                '[@media(hover:hover)_and_(pointer:fine)]:hover:bg-amber-500 [@media(hover:hover)_and_(pointer:fine)]:hover:border-amber-500 [@media(hover:hover)_and_(pointer:fine)]:hover:text-white text-amber-500',
+                              hover: notificationsChrome
+                                ? ''
+                                : '[@media(hover:hover)_and_(pointer:fine)]:hover:bg-amber-500 [@media(hover:hover)_and_(pointer:fine)]:hover:border-amber-500 [@media(hover:hover)_and_(pointer:fine)]:hover:text-white text-amber-500',
                               onClick: () => triggerAction('settings'),
                               className: `h-10 w-10 ${HOME_ACTION_XS}`,
                               chrome: notificationsChrome,
@@ -708,8 +720,9 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
                               icon: FileText,
                               tip: 'Notes',
                               label: null as string | null,
-                              hover:
-                                '[@media(hover:hover)_and_(pointer:fine)]:hover:bg-emerald-500 [@media(hover:hover)_and_(pointer:fine)]:hover:border-emerald-500 [@media(hover:hover)_and_(pointer:fine)]:hover:text-white text-emerald-500',
+                              hover: notepadChrome
+                                ? ''
+                                : '[@media(hover:hover)_and_(pointer:fine)]:hover:bg-emerald-500 [@media(hover:hover)_and_(pointer:fine)]:hover:border-emerald-500 [@media(hover:hover)_and_(pointer:fine)]:hover:text-white text-emerald-500',
                               onClick: () => triggerAction('notepad'),
                               className: `h-10 w-10 ${HOME_ACTION_XS}`,
                               chrome: notepadChrome,
@@ -722,8 +735,9 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
                               icon: CalendarDays,
                               tip: '1-on-1',
                               label: '1-ON-1',
-                              hover:
-                                '[@media(hover:hover)_and_(pointer:fine)]:hover:bg-teal-500 [@media(hover:hover)_and_(pointer:fine)]:hover:border-teal-500 [@media(hover:hover)_and_(pointer:fine)]:hover:text-white text-teal-600',
+                              hover: oneOnOneChrome
+                                ? ''
+                                : '[@media(hover:hover)_and_(pointer:fine)]:hover:bg-teal-500 [@media(hover:hover)_and_(pointer:fine)]:hover:border-teal-500 [@media(hover:hover)_and_(pointer:fine)]:hover:text-white text-teal-600',
                               onClick: () => triggerAction('one_on_one'),
                               className: `h-10 gap-1.5 px-2.5 ${HOME_ACTION_XS_LABELED}`,
                               chrome: oneOnOneChrome,
@@ -800,13 +814,21 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
                     <motion.button
                       type="button"
                       onClick={() => triggerAction('share')}
-                      whileHover={{
-                        scale: 1.15,
-                        rotate: -15,
-                        backgroundColor: accent,
-                        color: 'rgba(0, 0, 0, 1)',
-                        boxShadow: `0 0 30px color-mix(in srgb, ${accent} 40%, transparent)`,
-                      }}
+                      whileHover={
+                        shareChrome
+                          ? {
+                              scale: 1.15,
+                              rotate: -15,
+                              boxShadow: `0 0 30px color-mix(in srgb, ${accent} 40%, transparent)`,
+                            }
+                          : {
+                              scale: 1.15,
+                              rotate: -15,
+                              backgroundColor: accent,
+                              color: 'rgba(0, 0, 0, 1)',
+                              boxShadow: `0 0 30px color-mix(in srgb, ${accent} 40%, transparent)`,
+                            }
+                      }
                       whileTap={{ scale: 0.9 }}
                       className="vbiz-icon-btn group/btn relative flex h-11 w-11 items-center justify-center overflow-hidden rounded-full border border-black/5 bg-gray-50 text-gray-500 backdrop-blur-2xl transition-all duration-500 lg:h-14 lg:w-14 dark:border-white/20 dark:bg-white/5 dark:text-white/90"
                       style={shareChrome}
@@ -903,7 +925,7 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
                             {
                               icon: Share2,
                               label: 'Share',
-                              hover: 'hover:bg-blue-500 hover:border-blue-500 hover:text-white',
+                              hover: shareChrome ? '' : 'hover:bg-blue-500 hover:border-blue-500 hover:text-white',
                               onClick: () => triggerAction('share'),
                               chrome: shareChrome,
                             },
@@ -914,7 +936,9 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
                             {
                               icon: Bell,
                               label: 'Alerts',
-                              hover: 'hover:bg-amber-500 hover:border-amber-500 hover:text-white',
+                              hover: notificationsChrome
+                                ? ''
+                                : 'hover:bg-amber-500 hover:border-amber-500 hover:text-white',
                               onClick: () => triggerAction('settings'),
                               chrome: notificationsChrome,
                             },
@@ -925,7 +949,9 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
                             {
                               icon: FileText,
                               label: 'Notes',
-                              hover: 'hover:bg-emerald-500 hover:border-emerald-500 hover:text-white',
+                              hover: notepadChrome
+                                ? ''
+                                : 'hover:bg-emerald-500 hover:border-emerald-500 hover:text-white',
                               onClick: () => triggerAction('notepad'),
                               chrome: notepadChrome,
                             },
@@ -936,7 +962,7 @@ export const HomeSection = ({ homeHeroProps }: HomeSectionProps) => {
                             {
                               icon: CalendarDays,
                               label: '1-ON-1',
-                              hover: 'hover:bg-teal-500 hover:border-teal-500 hover:text-white',
+                              hover: oneOnOneChrome ? '' : 'hover:bg-teal-500 hover:border-teal-500 hover:text-white',
                               onClick: () => triggerAction('one_on_one'),
                               chrome: oneOnOneChrome,
                             },
