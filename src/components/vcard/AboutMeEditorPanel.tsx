@@ -185,7 +185,7 @@ export function AboutMeEditorPanel({ cardId }: AboutMeEditorPanelProps) {
             profileId={cardId}
             attachmentType="About Me Featured"
             accept="image/*,video/*"
-            hint="Upload a file or paste a direct image or video URL. The public About Me section shows that same file."
+            hint="Upload a file, paste an image URL, or paste a page link — we use the Open Graph image when the link is not a direct file."
             value={draft.featuredMediaUrl}
             onChange={(next) =>
               update({
@@ -215,7 +215,16 @@ export function AboutMeEditorPanel({ cardId }: AboutMeEditorPanelProps) {
           <GalleryLinkField
             url={draft.galleryUrl || ''}
             preview={draft.galleryPreview}
-            onChange={(next) => update({ galleryUrl: next.url, galleryPreview: next.preview })}
+            onChange={(next) => {
+              const ogImage = next.preview?.image?.trim() || ''
+              const hasFeatured = Boolean(draft.featuredMediaUrl.trim())
+              update({
+                galleryUrl: next.url,
+                galleryPreview: next.preview,
+                // Empty featured media: showcase the gallery page Open Graph image there too.
+                ...(!hasFeatured && ogImage ? { featuredMediaUrl: ogImage, featuredMediaFocusY: null } : {}),
+              })
+            }}
           />
         </div>
       </section>

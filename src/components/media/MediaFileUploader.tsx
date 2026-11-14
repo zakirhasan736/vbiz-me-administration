@@ -2,7 +2,6 @@
 
 import { SkeletonImage, SkeletonVideo } from '@/components/media/SkeletonMedia'
 import { AvatarMediaFramePreview } from '@/components/vcard/AvatarMediaFramePreview'
-import { displayImageSrc } from '@/lib/media/displayImageSrc'
 import {
   allowedKindsFromAccept,
   classifyPastedMediaUrl,
@@ -11,6 +10,7 @@ import {
   validatePastedMediaUrl,
 } from '@/lib/media/pastedMediaUrl'
 import type { ProfileMediaFrame } from '@/lib/media/profileMediaFrame'
+import { resolvePastedFeatureImage } from '@/lib/media/resolvePastedFeatureImage'
 import {
   mediaNeedsClientOptimize,
   MediaUploadError,
@@ -126,24 +126,6 @@ function isVideoOnlyAccept(accept: string): boolean {
   )
   if (allowsNonVideo) return false
   return tokens.every((t) => t === 'video/*' || t.startsWith('video/') || /^\.(mp4|webm|mov|m4v|ogg|ogv)$/i.test(t))
-}
-
-function probeImageElement(url: string): Promise<boolean> {
-  return new Promise((resolve) => {
-    const image = new window.Image()
-    let settled = false
-    const finish = (ok: boolean) => {
-      if (settled) return
-      settled = true
-      window.clearTimeout(timer)
-      resolve(ok)
-    }
-    const timer = window.setTimeout(() => finish(false), 12000)
-    image.onload = () => finish(image.naturalWidth > 0)
-    image.onerror = () => finish(false)
-    image.referrerPolicy = 'no-referrer'
-    image.src = url
-  })
 }
 
 function isLikelyImageUrl(url: string): boolean {
@@ -384,23 +366,33 @@ export function MediaFileUploader({
       return
     }
 
-    // Clear image extensions are trusted. Extensionless CDN links are probed so a gallery
-    // page is not saved as featured media.
+    // Clear image extensions are trusted. Extensionless / page links: load as image,
+    // else scrape Open Graph and prefer re-hosting that image to our media URL.
     const kind = classifyPastedMediaUrl(next)
     if (allowed.image && kind === 'unknown') {
       setCheckingUrl(true)
       try {
-        const directOk = await probeImageElement(next)
-        const proxy = displayImageSrc(next)
-        const ok = directOk || (proxy !== next && (await probeImageElement(proxy)))
-        if (!ok) {
+        const resolved = await resolvePastedFeatureImage(next, { profileId, attachmentType })
+        if (!resolved?.imageUrl) {
           setError(
             attachmentType === 'About Me Featured'
-              ? 'This link did not load as an image. Paste a direct image file URL, or use Photo gallery link for a gallery page.'
-              : 'This link did not load as an image. Paste a direct image file URL.'
+              ? 'No image found for that link. Paste a direct image file URL, or use Photo gallery link for a gallery page.'
+              : 'No image found for that link. Paste a direct image file URL, or a page that has an Open Graph image.'
           )
           return
         }
+        setError(null)
+        clearLocalPreview()
+        onChange({
+          url: resolved.imageUrl,
+          fileName: resolved.imageUrl.split('/').pop()?.split('?')[0] || 'remote-file',
+          mimeType: 'image/*',
+        })
+        setUrlDraft('')
+        return
+      } catch {
+        setError('Could not read that link. Check the URL and try again.')
+        return
       } finally {
         setCheckingUrl(false)
       }
@@ -638,10 +630,10 @@ export function MediaFileUploader({
               videoOnly
                 ? 'Or paste a video URL (YouTube, Vimeo, .mp4)'
                 : acceptsImages && !allowedKindsFromAccept(accept).video
-                  ? 'Or paste an image URL'
-                  : 'Or paste an image or video URL'
+                  ? 'Or paste an image URL or page link (Open Graph)'
+                  : 'Or paste an image, video, or page link'
             }
-            disabled={disabled || uploading}
+            disabled={disabled || uploading || checkingUrl}
             className={cn(
               'w-full rounded-2xl border border-slate-200/80 bg-white px-4 py-3 text-[13px] font-medium text-slate-900 shadow-sm transition-all outline-none dark:border-white/10 dark:bg-[#0b0f19] dark:text-white',
               styles.inputFocus
@@ -653,7 +645,7 @@ export function MediaFileUploader({
             disabled={disabled || uploading || checkingUrl || !urlDraft.trim()}
             className="shrink-0 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-[12px] font-bold text-slate-700 transition hover:bg-slate-100 disabled:opacity-50 dark:border-white/10 dark:bg-white/5 dark:text-slate-200"
           >
-            {checkingUrl ? 'Checking…' : 'Use URL'}
+            {checkingUrl ? 'Reading…' : 'Use URL'}
           </button>
           {urlDraft ? (
             <button

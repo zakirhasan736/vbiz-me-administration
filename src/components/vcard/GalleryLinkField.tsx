@@ -60,8 +60,9 @@ export function GalleryLinkField({ url, preview, onChange }: GalleryLinkFieldPro
           Photo gallery link
         </p>
         <p className="mt-1 text-[12px] font-medium text-slate-500 dark:text-slate-400">
-          Paste a gallery page (Pixieset, Google Photos, or any photo collection). The public card shows that page’s
-          preview image, title, and link. Visitors tap the card to open the gallery.
+          Paste a gallery page (Pixieset, Google Photos, or any photo collection). We read the Open Graph image, title,
+          and description — the same preview WhatsApp and other apps show when the link is shared. Visitors tap the card
+          to open the gallery. If Featured media is empty, that Open Graph image is used there too.
         </p>
       </div>
 

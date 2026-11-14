@@ -77,6 +77,7 @@ describe('MediaFileUploader paste URL', () => {
     expect(onChange).toHaveBeenCalledWith({
       url: 'https://lh3.googleusercontent.com/abc123',
       fileName: 'abc123',
+      mimeType: 'image/*',
     })
   })
 
@@ -101,6 +102,42 @@ describe('MediaFileUploader paste URL', () => {
     await pasteAndEnter(host, 'https://cdn.example.com/intro.mp4')
     expect(onChange).not.toHaveBeenCalled()
     expect(host.textContent).toContain('This field needs an image URL.')
+  })
+
+  it('uses the Open Graph image when a page URL is not a direct image file', async () => {
+    imageLoads = false
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url.includes('/api/link-preview')) {
+        imageLoads = true
+        return new Response(
+          JSON.stringify({
+            url: 'https://gallery.example/album',
+            title: 'Album',
+            description: '',
+            image: 'https://cdn.example.com/og-cover.jpg',
+            siteName: 'Gallery',
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        )
+      }
+      return new Response('{}', { status: 404 })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const onChange = vi.fn<(next: MediaUploadResult | null) => void>()
+    const host = render(<MediaFileUploader onChange={onChange} accept="image/*" />)
+    await pasteAndEnter(host, 'https://gallery.example/album')
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 20))
+    })
+
+    expect(onChange).toHaveBeenCalledWith({
+      url: 'https://cdn.example.com/og-cover.jpg',
+      fileName: 'og-cover.jpg',
+      mimeType: 'image/*',
+    })
+    vi.unstubAllGlobals()
   })
 
   it('previews a pasted YouTube link as a player and an extensionless image as an image', () => {
