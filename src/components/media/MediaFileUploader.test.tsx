@@ -43,6 +43,37 @@ describe('MediaFileUploader paste URL', () => {
     expect(onChange).toHaveBeenCalledWith({ url: 'https://cdn.example.com/team.jpg', fileName: 'team.jpg' })
   })
 
+  it('applies an extensionless image CDN URL after the load probe succeeds', async () => {
+    const onChange = vi.fn<(next: MediaUploadResult | null) => void>()
+    const OriginalImage = window.Image
+    class MockImage {
+      onload: ((ev: Event) => void) | null = null
+      onerror: ((ev: Event) => void) | null = null
+      naturalWidth = 0
+      referrerPolicy = ''
+      set src(_value: string) {
+        this.naturalWidth = 800
+        queueMicrotask(() => this.onload?.(new Event('load')))
+      }
+    }
+    vi.stubGlobal('Image', MockImage)
+
+    try {
+      const host = render(<MediaFileUploader onChange={onChange} accept="image/*" />)
+      pasteAndEnter(host, 'https://lh3.googleusercontent.com/abc123')
+      await act(async () => {
+        await Promise.resolve()
+        await Promise.resolve()
+      })
+      expect(onChange).toHaveBeenCalledWith({
+        url: 'https://lh3.googleusercontent.com/abc123',
+        fileName: 'abc123',
+      })
+    } finally {
+      vi.stubGlobal('Image', OriginalImage)
+    }
+  })
+
   it('accepts a YouTube link in an image-or-video field', () => {
     const onChange = vi.fn()
     const host = render(<MediaFileUploader onChange={onChange} accept="image/*,video/*" />)
