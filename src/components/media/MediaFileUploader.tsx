@@ -384,20 +384,25 @@ export function MediaFileUploader({
       return
     }
 
+    // Clear image extensions are trusted. Extensionless CDN links are probed so a gallery
+    // page is not saved as featured media.
     const kind = classifyPastedMediaUrl(next)
-    if (allowed.image && (kind === 'image' || kind === 'unknown')) {
+    if (allowed.image && kind === 'unknown') {
       setCheckingUrl(true)
-      const directOk = await probeImageElement(next)
-      const proxy = displayImageSrc(next)
-      const ok = directOk || (proxy !== next && (await probeImageElement(proxy)))
-      setCheckingUrl(false)
-      if (!ok) {
-        setError(
-          attachmentType === 'About Me Featured'
-            ? 'This link did not load as an image. Paste a direct image file URL, or use Photo gallery link for a gallery page.'
-            : 'This link did not load as an image. Paste a direct image file URL.'
-        )
-        return
+      try {
+        const directOk = await probeImageElement(next)
+        const proxy = displayImageSrc(next)
+        const ok = directOk || (proxy !== next && (await probeImageElement(proxy)))
+        if (!ok) {
+          setError(
+            attachmentType === 'About Me Featured'
+              ? 'This link did not load as an image. Paste a direct image file URL, or use Photo gallery link for a gallery page.'
+              : 'This link did not load as an image. Paste a direct image file URL.'
+          )
+          return
+        }
+      } finally {
+        setCheckingUrl(false)
       }
     }
 
