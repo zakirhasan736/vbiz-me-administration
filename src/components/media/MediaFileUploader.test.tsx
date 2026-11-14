@@ -14,7 +14,7 @@ function render(node: ReactNode): HTMLElement {
   return host
 }
 
-/** Pasted image links are probed with an <img> before they are accepted; decide the outcome here. */
+/** Pasted extensionless image links are probed with an <img> before they are accepted. */
 let imageLoads = true
 const RealImage = window.Image
 
@@ -47,7 +47,7 @@ afterEach(() => {
   }
 })
 
-/** Type into a React-controlled input and press Enter, then let the image probe settle. */
+/** Type into a React-controlled input and press Enter, then let any image probe settle. */
 async function pasteAndEnter(host: HTMLElement, text: string) {
   const input = host.querySelector<HTMLInputElement>('input[type="url"]')
   if (!input) throw new Error('URL input not rendered')
@@ -72,36 +72,15 @@ describe('MediaFileUploader paste URL', () => {
 
   it('applies an extensionless image CDN URL after the load probe succeeds', async () => {
     const onChange = vi.fn<(next: MediaUploadResult | null) => void>()
-    const OriginalImage = window.Image
-    class MockImage {
-      onload: ((ev: Event) => void) | null = null
-      onerror: ((ev: Event) => void) | null = null
-      naturalWidth = 0
-      referrerPolicy = ''
-      set src(_value: string) {
-        this.naturalWidth = 800
-        queueMicrotask(() => this.onload?.(new Event('load')))
-      }
-    }
-    vi.stubGlobal('Image', MockImage)
-
-    try {
-      const host = render(<MediaFileUploader onChange={onChange} accept="image/*" />)
-      pasteAndEnter(host, 'https://lh3.googleusercontent.com/abc123')
-      await act(async () => {
-        await Promise.resolve()
-        await Promise.resolve()
-      })
-      expect(onChange).toHaveBeenCalledWith({
-        url: 'https://lh3.googleusercontent.com/abc123',
-        fileName: 'abc123',
-      })
-    } finally {
-      vi.stubGlobal('Image', OriginalImage)
-    }
+    const host = render(<MediaFileUploader onChange={onChange} accept="image/*" />)
+    await pasteAndEnter(host, 'https://lh3.googleusercontent.com/abc123')
+    expect(onChange).toHaveBeenCalledWith({
+      url: 'https://lh3.googleusercontent.com/abc123',
+      fileName: 'abc123',
+    })
   })
 
-  it('accepts a YouTube link in an image-or-video field', () => {
+  it('accepts a YouTube link in an image-or-video field', async () => {
     const onChange = vi.fn()
     const host = render(<MediaFileUploader onChange={onChange} accept="image/*,video/*" />)
     await pasteAndEnter(host, 'https://youtu.be/GghZCyc_fnU')
@@ -124,7 +103,7 @@ describe('MediaFileUploader paste URL', () => {
     expect(host.textContent).toContain('This field needs an image URL.')
   })
 
-  it('previews a pasted YouTube link as a player and an extensionless image as an image', async () => {
+  it('previews a pasted YouTube link as a player and an extensionless image as an image', () => {
     const yt = render(
       <MediaFileUploader onChange={vi.fn()} accept="image/*,video/*" value="https://youtu.be/GghZCyc_fnU" />
     )
