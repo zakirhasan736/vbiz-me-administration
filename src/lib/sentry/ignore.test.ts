@@ -46,11 +46,15 @@ describe('shouldIgnoreSentryMessage', () => {
     expect(shouldIgnoreSentryMessage('event:error')).toBe(true)
     expect(shouldIgnoreSentryMessage('No Listener: tabs:outgoing.message.ready')).toBe(true)
     expect(shouldIgnoreSentryMessage('Error: Invalid call to runtime.sendMessage(). Tab not found.')).toBe(true)
+    expect(shouldIgnoreSentryMessage('Uncaught Error: Error invoking postMessage: Java object is gone')).toBe(true)
+    expect(shouldIgnoreSentryMessage('The video element is processing a Picture-in-Picture request.')).toBe(true)
+    expect(shouldIgnoreSentryMessage('Na')).toBe(true)
   })
 
   it('keeps real application errors', () => {
     expect(shouldIgnoreSentryMessage("Cannot read properties of undefined (reading 'id')")).toBe(false)
     expect(shouldIgnoreSentryMessage('Upload failed (500)')).toBe(false)
+    expect(shouldIgnoreSentryMessage('Name is required')).toBe(false)
     expect(shouldIgnoreSentryMessage('Uncaught TypeError: x is not a function')).toBe(false)
   })
 })
