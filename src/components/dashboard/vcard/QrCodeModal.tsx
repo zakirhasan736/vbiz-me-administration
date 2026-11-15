@@ -3,6 +3,7 @@
 import { CustomColorPicker } from '@/components/color/CustomColorPicker'
 import { isVideoAvatarSrc } from '@/lib/push/resolveNotificationAvatar'
 import { generateShareQrDataUrl } from '@/profile-app/lib/shareQrCode'
+import { canvasToDataUrl } from '@/utils/canvasExport'
 import { cn } from '@/utils/cn'
 import { Check, Copy, Download, ImageIcon, Link2, QrCode, Sparkles, X } from 'lucide-react'
 import { QRCodeCanvas } from 'qrcode.react'
@@ -118,8 +119,18 @@ export function QrCodeModal({
     }
   }
 
-  const handleDownload = () => {
-    const href = visibleGeneratedQr || qrRef.current?.querySelector('canvas')?.toDataURL('image/png')
+  const handleDownload = async () => {
+    // The on-screen code holds the owner's photo straight from storage, which the browser may
+    // refuse to export. If so, rebuild the same code with the photo loaded through our proxy.
+    const href =
+      visibleGeneratedQr ||
+      canvasToDataUrl(qrRef.current?.querySelector('canvas')) ||
+      (await generateShareQrDataUrl({
+        url,
+        foregroundColor: fg,
+        backgroundColor: bg,
+        centerImageUrl: staticCenter || undefined,
+      }).catch(() => ''))
     if (!href) return
     const link = document.createElement('a')
     link.download = `vbiz-qr-${Date.now()}.png`
@@ -340,7 +351,7 @@ export function QrCodeModal({
               </button>
               <button
                 type="button"
-                onClick={handleDownload}
+                onClick={() => void handleDownload()}
                 className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-900 py-3.5 text-[12px] font-black tracking-wider text-white uppercase shadow-lg shadow-indigo-500/20 transition-all hover:bg-slate-800 active:scale-[0.98] dark:bg-indigo-600 dark:hover:bg-indigo-500"
               >
                 {downloaded ? <Check className="h-4 w-4" /> : <Download className="h-4 w-4" />}

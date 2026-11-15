@@ -1,5 +1,6 @@
 import { buildProfilePath } from '@/lib/profileRoutes'
 import type { VCardRecord } from '@/types/vcard'
+import { canvasToDataUrl } from '@/utils/canvasExport'
 
 export function filterVCardsByQuery(cards: VCardRecord[], query: string): VCardRecord[] {
   const q = query.trim().toLowerCase()
@@ -31,9 +32,11 @@ export function downloadQrCanvasFromContainer(container: HTMLElement | null, fil
   if (!container) return
   const canvas = container.querySelector('canvas')
   if (!canvas) return
+  const href = canvasToDataUrl(canvas)
+  if (!href) return
   const link = document.createElement('a')
   link.download = filename
-  link.href = canvas.toDataURL('image/png')
+  link.href = href
   link.click()
 }
 
