@@ -1,4 +1,5 @@
 import { isVideoAvatarSrc } from '@/lib/push/resolveNotificationAvatar'
+import { canvasToDataUrl } from '@/utils/canvasExport'
 import QRCode from 'qrcode'
 
 export type ShareQrCenterSources = {
@@ -62,11 +63,9 @@ async function loadImageForCanvas(src: string): Promise<HTMLImageElement> {
     try {
       return await loadImageViaProxy(trimmed)
     } catch {
-      try {
-        return await loadImageDirect(trimmed, true)
-      } catch {
-        return loadImageDirect(trimmed, false)
-      }
+      // CORS-approved load only. An image loaded without CORS still draws, but it taints the
+      // canvas so the QR can never be exported — better to fail here and use the next candidate.
+      return loadImageDirect(trimmed, true)
     }
   }
 
@@ -403,6 +402,8 @@ type GenerateShareQrOptions = {
   centerVideoUrls?: string[]
   /** Initials drawn when no photo/video can be loaded — guarantees a center mark. */
   fallbackInitials?: string
+  /** Light (background) colour of the code. Defaults to white. */
+  backgroundColor?: string
   size?: number
 }
 
@@ -414,6 +415,7 @@ export async function generateShareQrDataUrl({
   centerImageUrls,
   centerVideoUrls,
   fallbackInitials,
+  backgroundColor = '#ffffff',
   size = 600,
 }: GenerateShareQrOptions): Promise<string> {
   const canvas = document.createElement('canvas')
@@ -422,10 +424,12 @@ export async function generateShareQrDataUrl({
     margin: 1,
     color: {
       dark: foregroundColor,
-      light: '#ffffff',
+      light: backgroundColor,
     },
     errorCorrectionLevel: 'H',
   })
+  // Taken before any photo is drawn, so there is always a code to hand back.
+  const plainQr = canvas.toDataURL('image/png')
 
   const centerImage = await resolveCenterImage({
     imageUrls: centerImageUrls,
@@ -436,14 +440,14 @@ export async function generateShareQrDataUrl({
   })
 
   const ctx = canvas.getContext('2d')
-  if (!ctx || !centerImage) return canvas.toDataURL('image/png')
+  if (!ctx || !centerImage) return plainQr
 
   try {
     drawCenterBadge(ctx, canvas.width, centerImage)
   } catch {
-    /* tainted canvas — return plain QR rather than failing share */
-    return canvas.toDataURL('image/png')
+    return plainQr
   }
 
-  return canvas.toDataURL('image/png')
+  // A cross-site photo taints the canvas and the export (not the draw) throws — share the plain QR instead.
+  return canvasToDataUrl(canvas) ?? plainQr
 }
