@@ -49,12 +49,14 @@ describe('shouldIgnoreSentryMessage', () => {
     expect(shouldIgnoreSentryMessage('Uncaught Error: Error invoking postMessage: Java object is gone')).toBe(true)
     expect(shouldIgnoreSentryMessage('The video element is processing a Picture-in-Picture request.')).toBe(true)
     expect(shouldIgnoreSentryMessage('Na')).toBe(true)
+    expect(shouldIgnoreSentryMessage('Object Not Found Matching Id:3, MethodName:update, ParamCount:4')).toBe(true)
   })
 
   it('keeps real application errors', () => {
     expect(shouldIgnoreSentryMessage("Cannot read properties of undefined (reading 'id')")).toBe(false)
     expect(shouldIgnoreSentryMessage('Upload failed (500)')).toBe(false)
     expect(shouldIgnoreSentryMessage('Name is required')).toBe(false)
+    expect(shouldIgnoreSentryMessage('Card not found')).toBe(false)
     expect(shouldIgnoreSentryMessage('Uncaught TypeError: x is not a function')).toBe(false)
   })
 })
