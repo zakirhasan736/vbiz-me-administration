@@ -757,7 +757,10 @@ function hashText(text) {
 function notificationTag(payload, copy) {
   if (payload.eventId) return `vbiz-evt-${hashText(String(payload.eventId))}`
   if (OWNER_PUSH_TYPES.has(payload.type)) {
-    return `vbiz-${payload.type}-${hashText([payload.profileId || payload.slug || '', copy.title, copy.body].join('|'))}`
+    // Server text only (no card id / card name the worker adds to the display copy): the
+    // same alert reaching a device via two of the owner's cards collapses into one;
+    // different leads / meetings differ in title or body.
+    return `vbiz-${payload.type}-${hashText([payload.title || copy.title, payload.body || copy.body].join('|'))}`
   }
   // Card updates: newest update for a card replaces the previous one.
   return payload.slug ? `vbiz-card-${payload.slug}` : 'vbiz-card-update'

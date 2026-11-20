@@ -118,6 +118,14 @@ describe('service worker push delivery', () => {
     expect(tags[2]).not.toBe(tags[0])
   })
 
+  it("collapses the same owner alert arriving via two of the owner's cards", async () => {
+    const sw = loadWorker()
+    const alert = { title: 'Meeting starting', body: 'Team sync starts in 30 minutes', type: 'meeting_alert' }
+    await sw.push({ ...alert, profileId: 'card-1', slug: 'card-1' })
+    await sw.push({ ...alert, profileId: 'card-2', slug: 'card-2' })
+    expect(sw.shown[0].options.tag).toBe(sw.shown[1].options.tag)
+  })
+
   it('collapses identical owner alerts even without an event id', async () => {
     const sw = loadWorker()
     const alert = {
