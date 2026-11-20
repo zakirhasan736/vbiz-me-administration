@@ -158,3 +158,15 @@ describe('service worker subscription renewal', () => {
     expect(sw.deletedCaches).not.toContain('vbiz-owner-push-meta')
   })
 })
+
+describe('service worker alert prominence', () => {
+  it('shows owner alerts as persistent, audible, vibrating notifications', async () => {
+    const sw = loadWorker()
+    await sw.push({ title: 'New lead', body: 'Jane saved your card', type: 'save_contact', slug: 'mike' })
+    const options = sw.shown[0].options
+    expect(options.requireInteraction).toBe(true)
+    expect(options.silent).toBe(false)
+    expect(options.renotify).toBe(true)
+    expect(options.vibrate).toEqual([200, 100, 200, 100, 300])
+  })
+})

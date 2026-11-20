@@ -853,6 +853,8 @@ self.addEventListener('push', (event) => {
           ...compatibleOptions,
           ...(icon ? { image: icon } : {}),
           renotify: true,
+          // Android: buzz like a message alert (stronger for owner / meeting alerts).
+          vibrate: meetingAlert ? [200, 100, 200, 100, 300] : [200, 100, 200],
           actions: [{ action: 'open', title: payload.type === 'meeting_alert' ? 'Open meeting' : 'Open' }],
         })
       } catch {
