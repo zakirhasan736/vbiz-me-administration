@@ -55,6 +55,9 @@ const IGNORED_MESSAGE_PATTERNS: RegExp[] = [
   /processing a picture-in-picture request/i,
   // A rejection whose whole message is "Na" / "N/A": no stack, no page, not diagnosable.
   /^n\/?a$/i,
+  // Microsoft's email link scanner (Outlook / Teams Safe Links) opens our links in an
+  // automated browser whose own bridge throws this. Not from a real visitor or our code.
+  /object not found matching id:\s*\d+,\s*methodname:/i,
 ]
 
 export function sentryReasonToMessage(reason: unknown): string {
