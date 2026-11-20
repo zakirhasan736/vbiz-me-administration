@@ -41,6 +41,24 @@ export type FollowState = {
 
 export const SERVICE_WORKER_PATH = '/sw.js'
 
+/** Set by the back office once this browser is registered as a card OWNER push device. */
+export const OWNER_PUSH_OK_KEY = 'vbiz_owner_push_ok_at'
+export const OWNER_PUSH_PENDING_KEY = 'vbiz_owner_push_pending'
+
+/**
+ * True when this browser is (or is being) registered for owner alerts. A browser has ONE
+ * push subscription shared by owner alerts and card follows, so it must never be
+ * unsubscribed just because the last card follow was turned off.
+ */
+export function isOwnerPushDevice(): boolean {
+  if (typeof window === 'undefined') return false
+  try {
+    return Boolean(localStorage.getItem(OWNER_PUSH_OK_KEY)) || localStorage.getItem(OWNER_PUSH_PENDING_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
 function getPushApiBase() {
   if (typeof window !== 'undefined') {
     return '/api'
@@ -796,6 +814,13 @@ export async function unsubscribeFromCard(cardSlug: string) {
 
   // Keep the browser PushSubscription if this endpoint still follows other cards.
   if (hasOtherActiveFollows(cardSlug)) {
+    return
+  }
+
+  // Card owner's device: the same subscription delivers owner alerts (contact saved,
+  // repeat visit, 1-on-1). Unsubscribing here killed those until the owner reopened the
+  // back office and it re-registered. Keep it; only the card follow is turned off.
+  if (isOwnerPushDevice()) {
     return
   }
 

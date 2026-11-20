@@ -3,6 +3,8 @@ import {
   assertValidVapidPublicKey,
   getReadyRegistration,
   isPushSupported,
+  OWNER_PUSH_OK_KEY,
+  OWNER_PUSH_PENDING_KEY,
   resolveVapidPublicKey,
   subscriptionToPayload,
   vapidKeyToArrayBuffer,
@@ -12,8 +14,6 @@ import { store } from '@/redux/store'
 
 type ProfileListRow = { id?: string }
 
-const OWNER_PUSH_PENDING_KEY = 'vbiz_owner_push_pending'
-const OWNER_PUSH_OK_KEY = 'vbiz_owner_push_ok_at'
 const OWNER_PUSH_VAPID_KEY = 'vbiz_owner_push_vapid'
 
 function waitForAuthToken(maxMs = 15000): Promise<string | null> {
