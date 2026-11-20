@@ -10,8 +10,9 @@ import {
 } from '@/lib/notifications'
 import { readNotificationPermission, shouldShowIosHomeScreenPushGuide } from '@/lib/push/iosPushGuidance'
 import { isOwnerPushPending, markOwnerPushPending, registerOwnerPushForCurrentUser } from '@/lib/push/registerOwnerPush'
+import { canPromptInstall, promptInstall, subscribeInstallPrompt } from '@/lib/pwa/installPrompt'
 import { Bell, X } from 'lucide-react'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 
 /**
  * After login, ask admin / corporate / single-card owners to allow browser
@@ -27,6 +28,9 @@ export function DashboardPushPrompt() {
   const [hint, setHint] = useState<string | null>(null)
   // iPhone/iPad browser tab: Web Push needs the Home Screen app — show steps, not Allow.
   const [iosGuide, setIosGuide] = useState(false)
+  // Android / desktop Chrome / Edge: offer "Install app" next to Allow (optional — push
+  // works in the browser too). iPhone uses the Home Screen steps instead.
+  const canInstall = useSyncExternalStore(subscribeInstallPrompt, canPromptInstall, () => false)
   const syncAttempts = useRef(0)
 
   const closeForSession = useCallback(() => {
@@ -244,10 +248,17 @@ export function DashboardPushPrompt() {
             <li>Tap Allow when asked about notifications.</li>
           </ol>
         ) : (
-          <p className="mt-2 text-sm leading-relaxed font-medium text-slate-500 dark:text-slate-400">
-            After you choose Allow once, you get alerts for <strong>your cards</strong> even when this page and your
-            browser are closed — you do not need to open the backoffice again.
-          </p>
+          <>
+            <p className="mt-2 text-sm leading-relaxed font-medium text-slate-500 dark:text-slate-400">
+              After you choose Allow once, alerts for <strong>your cards</strong> pop up on your lock screen and over
+              other apps — even when vBiz Me is closed. You don&apos;t need to open the back office again.
+            </p>
+            {canInstall ? (
+              <p className="mt-2 text-xs leading-relaxed font-semibold text-slate-500 dark:text-slate-400">
+                Optional: install vBiz Me as an app for a Home Screen / taskbar icon. Alerts work either way.
+              </p>
+            ) : null}
+          </>
         )}
         {hint ? (
           <p className="mt-3 rounded-xl border border-amber-200/80 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
@@ -273,6 +284,15 @@ export function DashboardPushPrompt() {
             >
               Not now
             </button>
+            {canInstall ? (
+              <button
+                type="button"
+                onClick={() => void promptInstall()}
+                className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50 dark:border-white/10 dark:text-slate-200 dark:hover:bg-white/5"
+              >
+                Install app
+              </button>
+            ) : null}
             <button
               type="button"
               disabled={busy}

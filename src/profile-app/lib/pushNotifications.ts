@@ -41,6 +41,24 @@ export type FollowState = {
 
 export const SERVICE_WORKER_PATH = '/sw.js'
 
+/** Set by the back office once this browser is registered as a card OWNER push device. */
+export const OWNER_PUSH_OK_KEY = 'vbiz_owner_push_ok_at'
+export const OWNER_PUSH_PENDING_KEY = 'vbiz_owner_push_pending'
+
+/**
+ * True when this browser is (or is being) registered for owner alerts. A browser has ONE
+ * push subscription shared by owner alerts and card follows, so it must never be
+ * unsubscribed just because the last card follow was turned off.
+ */
+export function isOwnerPushDevice(): boolean {
+  if (typeof window === 'undefined') return false
+  try {
+    return Boolean(localStorage.getItem(OWNER_PUSH_OK_KEY)) || localStorage.getItem(OWNER_PUSH_PENDING_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
 function getPushApiBase() {
   if (typeof window !== 'undefined') {
     return '/api'
@@ -50,6 +68,53 @@ function getPushApiBase() {
 
 function pushApiUrl(path: string) {
   return `${getPushApiBase()}/push${path}`
+}
+
+/** Cache the service worker reads (kept across SW updates — see MANAGED_CACHES in sw.js). */
+export const PUSH_WORKER_META_CACHE = 'vbiz-owner-push-meta'
+
+/**
+ * Give the service worker what it needs to heal this device on its own when the browser
+ * renews the push endpoint (`pushsubscriptionchange`): the VAPID key to resubscribe, the
+ * public rotate URL, and the endpoint the server currently has. No back office needed.
+ */
+export async function rememberPushForWorker(subscription: PushSubscription, publicKey: string): Promise<void> {
+  if (typeof caches === 'undefined') return
+  try {
+    const cache = await caches.open(PUSH_WORKER_META_CACHE)
+    const json = (value: unknown) =>
+      new Response(JSON.stringify(value), { headers: { 'Content-Type': 'application/json' } })
+    await cache.put(
+      '/__vbiz_push_meta',
+      json({ publicKey, rotateUrl: pushApiUrl('/rotate'), endpoint: subscription.endpoint })
+    )
+    // Legacy key read by older workers.
+    await cache.put('/__vbiz_owner_vapid', json({ publicKey }))
+  } catch {
+    /* best effort */
+  }
+}
+
+/**
+ * Move every server row of `oldEndpoint` (owner + follower, all cards) to `subscription`.
+ * Used whenever this browser's subscription is replaced (VAPID key change, renewal).
+ */
+export async function rotateServerEndpoint(oldEndpoint: string | null | undefined, subscription: PushSubscription) {
+  const json = subscription.toJSON()
+  if (!oldEndpoint || oldEndpoint === subscription.endpoint || !json.keys?.p256dh || !json.keys?.auth) return
+  try {
+    await fetch(pushApiUrl('/rotate'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({
+        old_endpoint: oldEndpoint,
+        endpoint: subscription.endpoint,
+        keys: { p256dh: json.keys.p256dh, auth: json.keys.auth },
+      }),
+    })
+  } catch {
+    /* next back office / card visit re-registers */
+  }
 }
 
 /** Public API uses `{ success, data }`; accept flat payloads too. */
@@ -462,6 +527,24 @@ export async function resolvePushEndpoint(): Promise<string | null> {
   return payload?.endpoint ?? null
 }
 
+/**
+ * This browser's push endpoint for attaching to a visitor request (1-on-1, note) so the
+ * card owner's reply can reach the visitor by push — no account needed. Null (fast) when
+ * notifications aren't allowed or anything is slow; the request must never wait on it.
+ */
+export async function resolveVisitorPushEndpoint(maxMs = 1500): Promise<string | null> {
+  try {
+    if (!isPushSupported() || readNotificationPermission() !== 'granted') return null
+    return await withTimeout(
+      resolvePushEndpoint().catch(() => null),
+      maxMs,
+      null
+    )
+  } catch {
+    return null
+  }
+}
+
 function detectBrowser(): string {
   if (typeof navigator === 'undefined') return 'Unknown'
   const ua = navigator.userAgent
@@ -605,7 +688,9 @@ export async function subscribeToCard(options: {
     }
 
     let subscription: PushSubscription | null = await registration.pushManager.getSubscription()
+    let replacedEndpoint: string | null = null
     if (subscription && !subscriptionMatchesVapidKey(subscription, vapidKeyBytes)) {
+      replacedEndpoint = subscription.endpoint
       await subscription.unsubscribe().catch(() => null)
       clearStoredSubscription()
       subscription = null
@@ -617,6 +702,9 @@ export async function subscribeToCard(options: {
         applicationServerKey: vapidKeyToArrayBuffer(vapidKeyBytes),
       })
     }
+    // Owner rows and other card follows on the replaced endpoint move to the new one.
+    await rotateServerEndpoint(replacedEndpoint, subscription)
+    await rememberPushForWorker(subscription, vapidPublicKey)
 
     const payload = writeStoredSubscription(subscription)
     const backendPreferences = coerceToBackendPreferences(options.preferences)
@@ -796,6 +884,13 @@ export async function unsubscribeFromCard(cardSlug: string) {
 
   // Keep the browser PushSubscription if this endpoint still follows other cards.
   if (hasOtherActiveFollows(cardSlug)) {
+    return
+  }
+
+  // Card owner's device: the same subscription delivers owner alerts (contact saved,
+  // repeat visit, 1-on-1). Unsubscribing here killed those until the owner reopened the
+  // back office and it re-registered. Keep it; only the card follow is turned off.
+  if (isOwnerPushDevice()) {
     return
   }
 

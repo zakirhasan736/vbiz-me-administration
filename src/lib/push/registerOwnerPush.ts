@@ -3,17 +3,19 @@ import {
   assertValidVapidPublicKey,
   getReadyRegistration,
   isPushSupported,
+  OWNER_PUSH_OK_KEY,
+  OWNER_PUSH_PENDING_KEY,
+  rememberPushForWorker,
   resolveVapidPublicKey,
+  rotateServerEndpoint,
   subscriptionToPayload,
   vapidKeyToArrayBuffer,
 } from '@/profile-app/lib/pushNotifications'
 import { baseUrl } from '@/redux/api/api'
 import { store } from '@/redux/store'
 
-type ProfileListRow = { id?: string }
+type ProfileListRow = { id?: string; userId?: string | null; companyUserId?: string | null }
 
-const OWNER_PUSH_PENDING_KEY = 'vbiz_owner_push_pending'
-const OWNER_PUSH_OK_KEY = 'vbiz_owner_push_ok_at'
 const OWNER_PUSH_VAPID_KEY = 'vbiz_owner_push_vapid'
 
 function waitForAuthToken(maxMs = 15000): Promise<string | null> {
@@ -51,7 +53,26 @@ function profileIdsFromListResponse(json: unknown): string[] {
       : Array.isArray(root.items)
         ? root.items
         : []
-  return rows.map((row) => row.id).filter((id): id is string => Boolean(id))
+  return directlyOwnedIds(rows, store.getState().user.user?.id)
+}
+
+/**
+ * Owner alerts belong to each card's DIRECT owner (member when assigned, else corporate).
+ * A corporate login also lists its linked member cards — skip those, so the corporate
+ * device never receives push for them (the dashboard still shows their activity).
+ * The server enforces the same rule; this just avoids pointless registration calls.
+ */
+export function directlyOwnedIds(rows: ProfileListRow[], myUserId?: string | null): string[] {
+  const ids: string[] = []
+  for (const row of rows) {
+    if (!row.id) continue
+    const directOwner = row.userId || row.companyUserId || null
+    // Older API responses without ownership fields: let the server decide.
+    if (!myUserId || (row.userId === undefined && row.companyUserId === undefined) || directOwner === myUserId) {
+      ids.push(row.id)
+    }
+  }
+  return ids
 }
 
 function uint8ArraysEqual(a: Uint8Array, b: Uint8Array) {
@@ -201,8 +222,10 @@ export async function registerOwnerPushForProfiles(profileIds: string[]): Promis
     if (!registration?.pushManager) return { registered: 0 }
 
     let subscription = await registration.pushManager.getSubscription()
+    let replacedEndpoint: string | null = null
     // Stale follower/env key must be replaced or OS push never arrives after Allow.
     if (subscription && !subscriptionMatchesVapidKey(subscription, keyBytes)) {
+      replacedEndpoint = subscription.endpoint
       await subscription.unsubscribe().catch(() => null)
       subscription = null
     }
@@ -212,6 +235,10 @@ export async function registerOwnerPushForProfiles(profileIds: string[]): Promis
         applicationServerKey: vapidKeyToArrayBuffer(keyBytes),
       })
     }
+    // Card follows on the replaced endpoint move to the new one; the worker can now heal
+    // this device itself if the browser renews the endpoint later.
+    await rotateServerEndpoint(replacedEndpoint, subscription)
+    await rememberPushForWorker(subscription, publicKey)
 
     const payload = subscriptionToPayload(subscription)
     let registered = 0
@@ -329,12 +356,18 @@ export async function sendOwnerTestPush(delaySeconds = 10): Promise<OwnerPushTes
 
   const apiRoot = baseUrl.replace(/\/$/, '')
   try {
-    const res = await fetch(`${apiRoot}/profiles/${encodeURIComponent(ids[0])}/push/test`, {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ endpoint: subscription.endpoint, delaySeconds }),
-    })
+    let res: Response | null = null
+    // The server only accepts a card this user directly owns (400 otherwise).
+    for (const id of ids.slice(0, 5)) {
+      res = await fetch(`${apiRoot}/profiles/${encodeURIComponent(id)}/push/test`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ endpoint: subscription.endpoint, delaySeconds }),
+      })
+      if (res.status !== 400) break
+    }
+    if (!res) return { ok: false, reason: 'no_cards', message: 'Create a card first — alerts are sent for your cards.' }
     const json = (await res.json().catch(() => null)) as {
       message?: string
       data?: { scheduled?: boolean; devices?: number; thisDeviceRegistered?: boolean; delaySeconds?: number }

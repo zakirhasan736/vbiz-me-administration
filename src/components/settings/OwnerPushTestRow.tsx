@@ -1,8 +1,14 @@
 'use client'
 
 import { Button } from '@/components/ui'
-import { shouldShowIosHomeScreenPushGuide } from '@/lib/push/iosPushGuidance'
+import {
+  isAndroidDevice,
+  isIosDevice,
+  readNotificationPermission,
+  shouldShowIosHomeScreenPushGuide,
+} from '@/lib/push/iosPushGuidance'
 import { sendOwnerTestPush } from '@/lib/push/registerOwnerPush'
+import { canPromptInstall, deviceAppMode, promptInstall, subscribeInstallPrompt } from '@/lib/pwa/installPrompt'
 import { cn } from '@/utils/cn'
 import { BellRing } from 'lucide-react'
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
@@ -10,6 +16,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 const TEST_DELAY_SECONDS = 10
 
 const subscribeNoop = () => () => {}
+const isDesktopDevice = () => !isIosDevice() && !isAndroidDevice() && !/Mobile/i.test(window.navigator.userAgent)
 
 type Status = { tone: 'info' | 'success' | 'error'; text: string } | null
 
@@ -24,6 +31,10 @@ export function OwnerPushTestRow() {
   const [countdown, setCountdown] = useState(0)
   // Device check is client-only; server render assumes no iPhone guide (no hydration mismatch).
   const iosNeedsHomeScreen = useSyncExternalStore(subscribeNoop, shouldShowIosHomeScreenPushGuide, () => false)
+  const isDesktop = useSyncExternalStore(subscribeNoop, isDesktopDevice, () => false)
+  const canInstall = useSyncExternalStore(subscribeInstallPrompt, canPromptInstall, () => false)
+  const appMode = useSyncExternalStore(subscribeNoop, deviceAppMode, () => 'browser' as const)
+  const permission = useSyncExternalStore(subscribeNoop, readNotificationPermission, () => 'default' as const)
   const timer = useRef<number | undefined>(undefined)
 
   useEffect(() => () => window.clearInterval(timer.current), [])
@@ -85,10 +96,42 @@ export function OwnerPushTestRow() {
         </Button>
       </div>
 
+      <p className="mt-3 text-xs font-semibold text-slate-500 dark:text-slate-400">
+        This device: {appMode === 'home_screen_app' ? 'vBiz Me app (Home Screen)' : 'browser'} · Notifications:{' '}
+        {permission === 'granted'
+          ? 'allowed'
+          : permission === 'denied'
+            ? 'blocked in browser settings'
+            : permission === 'unsupported'
+              ? 'not available here'
+              : 'not set yet'}
+        {canInstall ? (
+          <>
+            {' · '}
+            <button
+              type="button"
+              onClick={() => void promptInstall()}
+              className="font-bold text-amber-700 underline underline-offset-2 dark:text-amber-300"
+            >
+              Install vBiz Me app
+            </button>
+          </>
+        ) : null}
+      </p>
+
       {iosNeedsHomeScreen ? (
         <p className="mt-3 rounded-xl border border-amber-200/80 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
           iPhone: alerts only work from the Home Screen app. In Safari tap Share → Add to Home Screen, open vBiz Me from
           that icon, sign in, and allow notifications.
+        </p>
+      ) : null}
+
+      {isDesktop ? (
+        <p className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-300">
+          On a computer, alerts arrive only while your browser is running. Closing the vBiz Me tab or window is fine,
+          but if you fully quit the browser, alerts wait until you open it again. On Windows, turn on Chrome → Settings
+          → System → &quot;Continue running background apps when Google Chrome is closed&quot;. On Mac, keep Chrome open
+          in the Dock (close windows, don&apos;t quit).
         </p>
       ) : null}
 

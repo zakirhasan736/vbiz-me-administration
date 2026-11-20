@@ -180,6 +180,8 @@ const oneOnOneApi = api.injectEndpoints({
         guestEmail: string
         guestPhone?: string | null
         message?: string | null
+        /** Visitor browser's push endpoint, so the owner's replies can reach it by push. */
+        pushEndpoint?: string | null
       }
     >({
       query: (body) => ({
