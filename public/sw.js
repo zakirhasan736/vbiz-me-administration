@@ -37,7 +37,7 @@ const CATEGORY_ACTION = {
   crm: 'sent a back-office alert',
 }
 
-const OWNER_PUSH_TYPES = new Set(['meeting_alert', 'viewer_return', 'save_contact'])
+const OWNER_PUSH_TYPES = new Set(['meeting_alert', 'viewer_return', 'save_contact', 'owner_test'])
 
 /** Back-office / app routes — must never be rewritten to `/vCard/...`. */
 function isAppDeepLink(url) {

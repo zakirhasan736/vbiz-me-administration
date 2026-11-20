@@ -8,7 +8,7 @@ import {
   markDashboardPushPromptSeenThisSession,
   NOTIFICATIONS_EVENT,
 } from '@/lib/notifications'
-import { readNotificationPermission } from '@/lib/push/iosPushGuidance'
+import { readNotificationPermission, shouldShowIosHomeScreenPushGuide } from '@/lib/push/iosPushGuidance'
 import { isOwnerPushPending, markOwnerPushPending, registerOwnerPushForCurrentUser } from '@/lib/push/registerOwnerPush'
 import { Bell, X } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
@@ -25,6 +25,8 @@ export function DashboardPushPrompt() {
   const [open, setOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const [hint, setHint] = useState<string | null>(null)
+  // iPhone/iPad browser tab: Web Push needs the Home Screen app — show steps, not Allow.
+  const [iosGuide, setIosGuide] = useState(false)
   const syncAttempts = useRef(0)
 
   const closeForSession = useCallback(() => {
@@ -39,6 +41,12 @@ export function DashboardPushPrompt() {
   }, [])
 
   const maybeOpen = useCallback(() => {
+    if (shouldShowIosHomeScreenPushGuide()) {
+      if (!getNotificationPrefs().browserPush) return
+      setIosGuide(true)
+      setOpen(true)
+      return
+    }
     const permission = readNotificationPermission()
     if (permission === 'unsupported' || permission === 'granted') return
     if (!getNotificationPrefs().browserPush) return
@@ -63,6 +71,13 @@ export function DashboardPushPrompt() {
     const run = async () => {
       if (cancelled) return
       if (!getNotificationPrefs().browserPush) return
+      // iPhone/iPad Safari or Chrome tab: no push until opened from the Home Screen icon.
+      // Previously this silently returned, so iPhone owners never learned why alerts
+      // only showed while the backoffice was open.
+      if (shouldShowIosHomeScreenPushGuide()) {
+        if (!dashboardPushPromptSeenThisSession()) maybeOpen()
+        return
+      }
       const permission = readNotificationPermission()
       if (permission === 'unsupported') return
 
@@ -219,34 +234,55 @@ export function DashboardPushPrompt() {
           </button>
         </div>
         <h2 id="dash-push-title" className="text-lg font-black text-slate-900 dark:text-white">
-          Allow notifications
+          {iosGuide ? 'Get alerts on your iPhone' : 'Allow notifications'}
         </h2>
-        <p className="mt-2 text-sm leading-relaxed font-medium text-slate-500 dark:text-slate-400">
-          After you choose Allow once, you get alerts for <strong>your cards</strong> even when this page and your
-          browser are closed — you do not need to open the backoffice again.
-        </p>
+        {iosGuide ? (
+          <ol className="mt-3 list-decimal space-y-1.5 pl-5 text-sm leading-relaxed font-medium text-slate-600 dark:text-slate-300">
+            <li>In Safari, tap the Share button.</li>
+            <li>Tap Add to Home Screen, then Add.</li>
+            <li>Open vBiz Me from the new Home Screen icon and sign in.</li>
+            <li>Tap Allow when asked about notifications.</li>
+          </ol>
+        ) : (
+          <p className="mt-2 text-sm leading-relaxed font-medium text-slate-500 dark:text-slate-400">
+            After you choose Allow once, you get alerts for <strong>your cards</strong> even when this page and your
+            browser are closed — you do not need to open the backoffice again.
+          </p>
+        )}
         {hint ? (
           <p className="mt-3 rounded-xl border border-amber-200/80 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
             {hint}
           </p>
         ) : null}
-        <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-          <button
-            type="button"
-            onClick={closeForSession}
-            className="rounded-xl px-4 py-2.5 text-sm font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-white/5"
-          >
-            Not now
-          </button>
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => void handleAllow()}
-            className="rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-black text-white hover:bg-amber-600 disabled:opacity-60"
-          >
-            {busy ? 'Asking browser…' : 'Allow notifications'}
-          </button>
-        </div>
+        {iosGuide ? (
+          <div className="mt-5 flex justify-end">
+            <button
+              type="button"
+              onClick={closeForSession}
+              className="rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-black text-white hover:bg-amber-600"
+            >
+              Got it
+            </button>
+          </div>
+        ) : (
+          <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <button
+              type="button"
+              onClick={closeForSession}
+              className="rounded-xl px-4 py-2.5 text-sm font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-white/5"
+            >
+              Not now
+            </button>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void handleAllow()}
+              className="rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-black text-white hover:bg-amber-600 disabled:opacity-60"
+            >
+              {busy ? 'Asking browser…' : 'Allow notifications'}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   )

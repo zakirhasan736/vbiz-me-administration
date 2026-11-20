@@ -1,3 +1,4 @@
+import { readNotificationPermission, shouldShowIosHomeScreenPushGuide } from '@/lib/push/iosPushGuidance'
 import {
   assertValidVapidPublicKey,
   getReadyRegistration,
@@ -230,6 +231,21 @@ export async function registerOwnerPushForProfiles(profileIds: string[]): Promis
   }
 }
 
+/** Owned card ids for the signed-in owner (null when the list request fails). */
+async function fetchOwnedProfileIds(token: string): Promise<string[] | null> {
+  const apiRoot = baseUrl.replace(/\/$/, '')
+  try {
+    const res = await fetch(`${apiRoot}/profiles?limit=100`, {
+      credentials: 'include',
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (!res.ok) return null
+    return profileIdsFromListResponse(await res.json())
+  } catch {
+    return null
+  }
+}
+
 /** Load owned profile ids and register owner push for this browser. */
 export async function registerOwnerPushForCurrentUser(): Promise<{ registered: number }> {
   const token = await waitForAuthToken()
@@ -238,25 +254,109 @@ export async function registerOwnerPushForCurrentUser(): Promise<{ registered: n
     return { registered: 0 }
   }
 
-  const apiRoot = baseUrl.replace(/\/$/, '')
-  try {
-    const res = await fetch(`${apiRoot}/profiles?limit=100`, {
-      credentials: 'include',
-      headers: { Authorization: `Bearer ${token}` },
-    })
-    if (!res.ok) {
-      markOwnerPushPending()
-      return { registered: 0 }
-    }
-    const json: unknown = await res.json()
-    const ids = profileIdsFromListResponse(json)
-    if (!ids.length) {
-      markOwnerPushPending()
-      return { registered: 0 }
-    }
-    return registerOwnerPushForProfiles(ids)
-  } catch {
+  const ids = await fetchOwnedProfileIds(token)
+  if (!ids?.length) {
     markOwnerPushPending()
     return { registered: 0 }
+  }
+  return registerOwnerPushForProfiles(ids)
+}
+
+export type OwnerPushTestResult =
+  | { ok: true; devices: number; thisDeviceRegistered: boolean; delaySeconds: number }
+  | {
+      ok: false
+      reason:
+        'ios_home_screen' | 'unsupported' | 'permission' | 'not_signed_in' | 'no_cards' | 'not_registered' | 'error'
+      message: string
+    }
+
+/**
+ * Owner self-test from Settings: make sure THIS device is registered as an owner push
+ * target, then ask the server to send a test alert after `delaySeconds` so the owner
+ * can lock the phone / close vBiz Me and confirm lock-screen delivery.
+ * Call from a click handler (permission prompts need a user gesture).
+ */
+export async function sendOwnerTestPush(delaySeconds = 10): Promise<OwnerPushTestResult> {
+  if (shouldShowIosHomeScreenPushGuide()) {
+    return {
+      ok: false,
+      reason: 'ios_home_screen',
+      message:
+        'On iPhone, alerts only work from the Home Screen app. In Safari tap Share → Add to Home Screen, open vBiz Me from that icon, sign in, then run this test again.',
+    }
+  }
+  if (!isPushSupported()) {
+    return { ok: false, reason: 'unsupported', message: 'This browser does not support push notifications.' }
+  }
+
+  let permission = readNotificationPermission()
+  if (permission === 'default') {
+    try {
+      permission = await window.Notification.requestPermission()
+    } catch {
+      /* treated as not granted below */
+    }
+  }
+  if (permission !== 'granted') {
+    return {
+      ok: false,
+      reason: 'permission',
+      message:
+        'Notifications are blocked for vBiz Me on this device. Allow them in your browser or phone settings, then try again.',
+    }
+  }
+
+  const token = (await waitForAuthToken(5000)) || store.getState().user.token
+  if (!token) return { ok: false, reason: 'not_signed_in', message: 'Sign in again, then run the test.' }
+
+  const ids = await fetchOwnedProfileIds(token)
+  if (!ids)
+    return { ok: false, reason: 'error', message: 'Could not reach vBiz Me. Check your connection and try again.' }
+  if (!ids.length)
+    return { ok: false, reason: 'no_cards', message: 'Create a card first — alerts are sent for your cards.' }
+
+  const { registered } = await registerOwnerPushForProfiles(ids)
+  const registration = await getReadyRegistration()
+  const subscription = await registration?.pushManager?.getSubscription()
+  if (!registered || !subscription) {
+    return {
+      ok: false,
+      reason: 'not_registered',
+      message: 'This device could not be registered for alerts. Refresh the page and try again.',
+    }
+  }
+
+  const apiRoot = baseUrl.replace(/\/$/, '')
+  try {
+    const res = await fetch(`${apiRoot}/profiles/${encodeURIComponent(ids[0])}/push/test`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ endpoint: subscription.endpoint, delaySeconds }),
+    })
+    const json = (await res.json().catch(() => null)) as {
+      message?: string
+      data?: { scheduled?: boolean; devices?: number; thisDeviceRegistered?: boolean; delaySeconds?: number }
+    } | null
+    if (!res.ok) {
+      return { ok: false, reason: 'error', message: json?.message || 'Could not send the test alert.' }
+    }
+    const data = json?.data || {}
+    if (!data.scheduled || !data.thisDeviceRegistered) {
+      return {
+        ok: false,
+        reason: 'not_registered',
+        message: 'The server does not have this device registered yet. Refresh the page and try again.',
+      }
+    }
+    return {
+      ok: true,
+      devices: data.devices ?? 1,
+      thisDeviceRegistered: true,
+      delaySeconds: data.delaySeconds ?? delaySeconds,
+    }
+  } catch {
+    return { ok: false, reason: 'error', message: 'Could not reach vBiz Me. Check your connection and try again.' }
   }
 }

@@ -5,6 +5,7 @@ import { LogoutConfirmModal } from '@/components/LogoutConfirmModal'
 import { AccountProfilePhotoEditor } from '@/components/settings/AccountProfilePhotoEditor'
 import { BillingPackagesModal } from '@/components/settings/BillingPackagesModal'
 import ChangePasswordForm from '@/components/settings/ChangePasswordForm'
+import { OwnerPushTestRow } from '@/components/settings/OwnerPushTestRow'
 import SetPasswordForm from '@/components/settings/SetPasswordForm'
 import { Button, Input, Switch, Textarea } from '@/components/ui'
 import { useDashboardTour } from '@/context/DashboardTourContext'
@@ -503,11 +504,12 @@ export default function SettingsDialog() {
             <Section id="notifications" active={activeTab === 'notifications'} title="Notifications">
               <div className="space-y-4">
                 <ToggleRow
-                  title="Browser push alerts"
-                  description="Show OS notifications when this tab is open or in the background."
+                  title="Push alerts on this device"
+                  description="Lock-screen and banner alerts for your cards, even when vBiz Me is closed."
                   checked={notifPrefs.browserPush}
                   onChange={handleBrowserPushToggle}
                 />
+                {notifPrefs.browserPush ? <OwnerPushTestRow /> : null}
                 <ToggleRow
                   title="Contact saves"
                   description="Alert when a guest shares contact details on your vCard."
