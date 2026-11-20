@@ -70,6 +70,53 @@ function pushApiUrl(path: string) {
   return `${getPushApiBase()}/push${path}`
 }
 
+/** Cache the service worker reads (kept across SW updates — see MANAGED_CACHES in sw.js). */
+export const PUSH_WORKER_META_CACHE = 'vbiz-owner-push-meta'
+
+/**
+ * Give the service worker what it needs to heal this device on its own when the browser
+ * renews the push endpoint (`pushsubscriptionchange`): the VAPID key to resubscribe, the
+ * public rotate URL, and the endpoint the server currently has. No back office needed.
+ */
+export async function rememberPushForWorker(subscription: PushSubscription, publicKey: string): Promise<void> {
+  if (typeof caches === 'undefined') return
+  try {
+    const cache = await caches.open(PUSH_WORKER_META_CACHE)
+    const json = (value: unknown) =>
+      new Response(JSON.stringify(value), { headers: { 'Content-Type': 'application/json' } })
+    await cache.put(
+      '/__vbiz_push_meta',
+      json({ publicKey, rotateUrl: pushApiUrl('/rotate'), endpoint: subscription.endpoint })
+    )
+    // Legacy key read by older workers.
+    await cache.put('/__vbiz_owner_vapid', json({ publicKey }))
+  } catch {
+    /* best effort */
+  }
+}
+
+/**
+ * Move every server row of `oldEndpoint` (owner + follower, all cards) to `subscription`.
+ * Used whenever this browser's subscription is replaced (VAPID key change, renewal).
+ */
+export async function rotateServerEndpoint(oldEndpoint: string | null | undefined, subscription: PushSubscription) {
+  const json = subscription.toJSON()
+  if (!oldEndpoint || oldEndpoint === subscription.endpoint || !json.keys?.p256dh || !json.keys?.auth) return
+  try {
+    await fetch(pushApiUrl('/rotate'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({
+        old_endpoint: oldEndpoint,
+        endpoint: subscription.endpoint,
+        keys: { p256dh: json.keys.p256dh, auth: json.keys.auth },
+      }),
+    })
+  } catch {
+    /* next back office / card visit re-registers */
+  }
+}
+
 /** Public API uses `{ success, data }`; accept flat payloads too. */
 function unwrapPublicPayload<T extends Record<string, unknown>>(json: unknown): T {
   if (!json || typeof json !== 'object') return {} as T
@@ -641,7 +688,9 @@ export async function subscribeToCard(options: {
     }
 
     let subscription: PushSubscription | null = await registration.pushManager.getSubscription()
+    let replacedEndpoint: string | null = null
     if (subscription && !subscriptionMatchesVapidKey(subscription, vapidKeyBytes)) {
+      replacedEndpoint = subscription.endpoint
       await subscription.unsubscribe().catch(() => null)
       clearStoredSubscription()
       subscription = null
@@ -653,6 +702,9 @@ export async function subscribeToCard(options: {
         applicationServerKey: vapidKeyToArrayBuffer(vapidKeyBytes),
       })
     }
+    // Owner rows and other card follows on the replaced endpoint move to the new one.
+    await rotateServerEndpoint(replacedEndpoint, subscription)
+    await rememberPushForWorker(subscription, vapidPublicKey)
 
     const payload = writeStoredSubscription(subscription)
     const backendPreferences = coerceToBackendPreferences(options.preferences)

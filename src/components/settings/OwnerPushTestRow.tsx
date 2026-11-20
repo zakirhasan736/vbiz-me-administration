@@ -1,8 +1,14 @@
 'use client'
 
 import { Button } from '@/components/ui'
-import { isAndroidDevice, isIosDevice, shouldShowIosHomeScreenPushGuide } from '@/lib/push/iosPushGuidance'
+import {
+  isAndroidDevice,
+  isIosDevice,
+  readNotificationPermission,
+  shouldShowIosHomeScreenPushGuide,
+} from '@/lib/push/iosPushGuidance'
 import { sendOwnerTestPush } from '@/lib/push/registerOwnerPush'
+import { canPromptInstall, deviceAppMode, promptInstall, subscribeInstallPrompt } from '@/lib/pwa/installPrompt'
 import { cn } from '@/utils/cn'
 import { BellRing } from 'lucide-react'
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
@@ -26,6 +32,9 @@ export function OwnerPushTestRow() {
   // Device check is client-only; server render assumes no iPhone guide (no hydration mismatch).
   const iosNeedsHomeScreen = useSyncExternalStore(subscribeNoop, shouldShowIosHomeScreenPushGuide, () => false)
   const isDesktop = useSyncExternalStore(subscribeNoop, isDesktopDevice, () => false)
+  const canInstall = useSyncExternalStore(subscribeInstallPrompt, canPromptInstall, () => false)
+  const appMode = useSyncExternalStore(subscribeNoop, deviceAppMode, () => 'browser' as const)
+  const permission = useSyncExternalStore(subscribeNoop, readNotificationPermission, () => 'default' as const)
   const timer = useRef<number | undefined>(undefined)
 
   useEffect(() => () => window.clearInterval(timer.current), [])
@@ -86,6 +95,29 @@ export function OwnerPushTestRow() {
           {countdown > 0 ? `Arriving in ${countdown}s` : 'Send test alert'}
         </Button>
       </div>
+
+      <p className="mt-3 text-xs font-semibold text-slate-500 dark:text-slate-400">
+        This device: {appMode === 'home_screen_app' ? 'vBiz Me app (Home Screen)' : 'browser'} · Notifications:{' '}
+        {permission === 'granted'
+          ? 'allowed'
+          : permission === 'denied'
+            ? 'blocked in browser settings'
+            : permission === 'unsupported'
+              ? 'not available here'
+              : 'not set yet'}
+        {canInstall ? (
+          <>
+            {' · '}
+            <button
+              type="button"
+              onClick={() => void promptInstall()}
+              className="font-bold text-amber-700 underline underline-offset-2 dark:text-amber-300"
+            >
+              Install vBiz Me app
+            </button>
+          </>
+        ) : null}
+      </p>
 
       {iosNeedsHomeScreen ? (
         <p className="mt-3 rounded-xl border border-amber-200/80 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">

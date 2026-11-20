@@ -364,42 +364,84 @@ function urlBase64ToUint8Array(base64String) {
   return outputArray
 }
 
-async function readStoredOwnerVapidPublicKey() {
+const PUSH_META_CACHE = 'vbiz-owner-push-meta'
+
+async function readPushMeta() {
   try {
-    const cache = await caches.open('vbiz-owner-push-meta')
-    const res = await cache.match('/__vbiz_owner_vapid')
-    if (!res) return ''
+    const cache = await caches.open(PUSH_META_CACHE)
+    const res = (await cache.match('/__vbiz_push_meta')) || (await cache.match('/__vbiz_owner_vapid'))
+    if (!res) return {}
     const json = await res.json()
-    return typeof json?.publicKey === 'string' ? json.publicKey.trim() : ''
+    return json && typeof json === 'object' ? json : {}
   } catch {
-    return ''
+    return {}
+  }
+}
+
+async function writePushMeta(meta) {
+  try {
+    const cache = await caches.open(PUSH_META_CACHE)
+    await cache.put(
+      '/__vbiz_push_meta',
+      new Response(JSON.stringify(meta), { headers: { 'Content-Type': 'application/json' } })
+    )
+  } catch {
+    /* ignore */
   }
 }
 
 /**
- * Browser rotated the push endpoint — resubscribe and tell open clients to
- * re-save owner rows so closed-browser push keeps working after first Allow.
+ * The browser renewed this device's push endpoint. Heal it HERE, without the back office:
+ * resubscribe (if the browser didn't already), then tell the server to move every card
+ * row of the old endpoint to the new one. Before this, the server kept pushing to the dead
+ * endpoint and the owner got nothing until they next opened the back office.
  */
 self.addEventListener('pushsubscriptionchange', (event) => {
   event.waitUntil(
     (async () => {
+      const meta = await readPushMeta()
+      const publicKey = typeof meta.publicKey === 'string' ? meta.publicKey.trim() : ''
+      const oldEndpoint = event.oldSubscription?.endpoint || (typeof meta.endpoint === 'string' ? meta.endpoint : '')
+      let subscription = event.newSubscription || null
       try {
-        const publicKey = await readStoredOwnerVapidPublicKey()
-        if (publicKey && self.registration?.pushManager) {
-          await self.registration.pushManager.subscribe({
+        if (!subscription && self.registration?.pushManager) {
+          subscription = await self.registration.pushManager.getSubscription()
+        }
+        if (!subscription && publicKey && self.registration?.pushManager) {
+          subscription = await self.registration.pushManager.subscribe({
             userVisibleOnly: true,
             applicationServerKey: urlBase64ToUint8Array(publicKey),
           })
         }
       } catch {
-        /* client re-register will recreate */
+        subscription = null
       }
+
+      const json = subscription && typeof subscription.toJSON === 'function' ? subscription.toJSON() : null
+      if (json?.endpoint && json.keys?.p256dh && json.keys?.auth && oldEndpoint && meta.rotateUrl) {
+        try {
+          const res = await fetch(meta.rotateUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+            body: JSON.stringify({
+              old_endpoint: oldEndpoint,
+              endpoint: json.endpoint,
+              keys: { p256dh: json.keys.p256dh, auth: json.keys.auth },
+            }),
+          })
+          if (res.ok) await writePushMeta({ ...meta, endpoint: json.endpoint })
+        } catch {
+          /* fall back to client re-register below */
+        }
+      }
+
+      // Belt and braces: any open back office / card re-registers too.
       const clientList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
       for (const client of clientList) {
         client.postMessage({ type: 'vbiz_push_subscription_changed' })
       }
       try {
-        const cache = await caches.open('vbiz-owner-push-meta')
+        const cache = await caches.open(PUSH_META_CACHE)
         await cache.put('/__vbiz_owner_reregister', new Response('1'))
       } catch {
         /* ignore */
@@ -412,7 +454,8 @@ const CARD_SHELL_CACHE = 'vbiz-public-card-shell-v6'
 const CARD_DATA_CACHE = 'vbiz-public-card-data-v6'
 const CARD_ASSET_CACHE = 'vbiz-public-card-assets-v6'
 /** Dropped: never SW-cache `/_next/static` (stale builder UI). Old `vbiz-next-static-v*` cleared on activate. */
-const MANAGED_CACHES = [CARD_SHELL_CACHE, CARD_DATA_CACHE, CARD_ASSET_CACHE, CARD_PUSH_MEDIA_CACHE]
+// PUSH_META_CACHE must survive SW updates: it holds the key + rotate URL for pushsubscriptionchange.
+const MANAGED_CACHES = [CARD_SHELL_CACHE, CARD_DATA_CACHE, CARD_ASSET_CACHE, CARD_PUSH_MEDIA_CACHE, PUSH_META_CACHE]
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
@@ -704,6 +747,22 @@ self.addEventListener('fetch', (event) => {
   }
 })
 
+/** Small stable string hash (djb2) for notification tags. */
+function hashText(text) {
+  let hash = 5381
+  for (let i = 0; i < text.length; i += 1) hash = ((hash << 5) + hash + text.charCodeAt(i)) | 0
+  return (hash >>> 0).toString(36)
+}
+
+function notificationTag(payload, copy) {
+  if (payload.eventId) return `vbiz-evt-${hashText(String(payload.eventId))}`
+  if (OWNER_PUSH_TYPES.has(payload.type)) {
+    return `vbiz-${payload.type}-${hashText([payload.profileId || payload.slug || '', copy.title, copy.body].join('|'))}`
+  }
+  // Card updates: newest update for a card replaces the previous one.
+  return payload.slug ? `vbiz-card-${payload.slug}` : 'vbiz-card-update'
+}
+
 self.addEventListener('push', (event) => {
   let payload = normalizePushPayload({})
 
@@ -721,7 +780,13 @@ self.addEventListener('push', (event) => {
 
   event.waitUntil(
     (async () => {
-      payload = await resolveCardMedia(payload)
+      // Nothing before showNotification may stop it: iOS/Chrome treat a push that shows no
+      // notification as abuse and can revoke the subscription.
+      try {
+        payload = await resolveCardMedia(payload)
+      } catch {
+        /* show without card media */
+      }
       // Normalize public card paths only — keep `/crm?tab=…`, `/?contacts=1`, and `#services`.
       if (payload.url && !isAppDeepLink(payload.url) && !/^https?:\/\//i.test(payload.url)) {
         payload.url = normalizeCardUrl(payload.url, payload.slug || slugFromUrl(payload.url))
@@ -754,22 +819,22 @@ self.addEventListener('push', (event) => {
           ? toAbsoluteUrl(`/vCard/${payload.slug}/icon/192`)
           : ''
 
-      const clientList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
-      const meetingAlert =
-        payload.type === 'meeting_alert' || payload.type === 'viewer_return' || payload.type === 'save_contact'
-
-      for (const client of clientList) {
-        client.postMessage({
-          type: 'vbiz_push',
-          payload: richPayload,
-        })
+      const meetingAlert = OWNER_PUSH_TYPES.has(payload.type)
+      try {
+        const clientList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+        for (const client of clientList) {
+          client.postMessage({
+            type: 'vbiz_push',
+            payload: richPayload,
+          })
+        }
+      } catch {
+        /* in-app refresh is optional */
       }
 
-      const tag = meetingAlert
-        ? `vbiz-${payload.type}-${payload.profileId || payload.slug || 'card'}-${Date.now()}`
-        : payload.slug
-          ? `vbiz-card-${payload.slug}`
-          : 'vbiz-card-update'
+      // Stable tag = no stacked duplicates: the same event delivered twice replaces itself.
+      // Distinct events (two different leads) get different tags, so none are lost.
+      const tag = notificationTag(payload, copy)
 
       // Always show OS push after first Allow — backoffice/card open/focused must not mute it.
       const compatibleOptions = {

@@ -5,7 +5,9 @@ import {
   isPushSupported,
   OWNER_PUSH_OK_KEY,
   OWNER_PUSH_PENDING_KEY,
+  rememberPushForWorker,
   resolveVapidPublicKey,
+  rotateServerEndpoint,
   subscriptionToPayload,
   vapidKeyToArrayBuffer,
 } from '@/profile-app/lib/pushNotifications'
@@ -220,8 +222,10 @@ export async function registerOwnerPushForProfiles(profileIds: string[]): Promis
     if (!registration?.pushManager) return { registered: 0 }
 
     let subscription = await registration.pushManager.getSubscription()
+    let replacedEndpoint: string | null = null
     // Stale follower/env key must be replaced or OS push never arrives after Allow.
     if (subscription && !subscriptionMatchesVapidKey(subscription, keyBytes)) {
+      replacedEndpoint = subscription.endpoint
       await subscription.unsubscribe().catch(() => null)
       subscription = null
     }
@@ -231,6 +235,10 @@ export async function registerOwnerPushForProfiles(profileIds: string[]): Promis
         applicationServerKey: vapidKeyToArrayBuffer(keyBytes),
       })
     }
+    // Card follows on the replaced endpoint move to the new one; the worker can now heal
+    // this device itself if the browser renews the endpoint later.
+    await rotateServerEndpoint(replacedEndpoint, subscription)
+    await rememberPushForWorker(subscription, publicKey)
 
     const payload = subscriptionToPayload(subscription)
     let registered = 0

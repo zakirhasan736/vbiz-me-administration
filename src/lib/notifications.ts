@@ -1,5 +1,6 @@
 import { hasNotificationApi, readNotificationPermission } from '@/lib/push/iosPushGuidance'
 import { writePwaBadgeCount } from '@/lib/push/pwaBadgeCount'
+import { isOwnerPushDevice, isPushSupported } from '@/profile-app/lib/pushNotifications'
 
 export type NotificationAudience = 'single' | 'corporate' | 'admin'
 
@@ -399,6 +400,11 @@ function categoryAllowed(category: NotificationCategory, prefs: NotificationPref
 function maybeBrowserNotify(n: AppNotification, prefs: NotificationPrefs) {
   if (!prefs.browserPush) return
   if (readNotificationPermission() !== 'granted' || !hasNotificationApi()) return
+  // This device gets real Web Push from the server (lock screen, app closed). Showing a
+  // second OS popup from the open tab duplicated every alert — and re-popped recent ones
+  // whenever the back office was opened. Keep the in-app bell only; the OS popup here is
+  // a fallback for browsers without Web Push.
+  if (isPushSupported() && isOwnerPushDevice()) return
   try {
     const note = new window.Notification(n.title, {
       body: n.body,
