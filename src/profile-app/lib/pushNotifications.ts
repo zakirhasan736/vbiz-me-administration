@@ -480,6 +480,24 @@ export async function resolvePushEndpoint(): Promise<string | null> {
   return payload?.endpoint ?? null
 }
 
+/**
+ * This browser's push endpoint for attaching to a visitor request (1-on-1, note) so the
+ * card owner's reply can reach the visitor by push — no account needed. Null (fast) when
+ * notifications aren't allowed or anything is slow; the request must never wait on it.
+ */
+export async function resolveVisitorPushEndpoint(maxMs = 1500): Promise<string | null> {
+  try {
+    if (!isPushSupported() || readNotificationPermission() !== 'granted') return null
+    return await withTimeout(
+      resolvePushEndpoint().catch(() => null),
+      maxMs,
+      null
+    )
+  } catch {
+    return null
+  }
+}
+
 function detectBrowser(): string {
   if (typeof navigator === 'undefined') return 'Unknown'
   const ua = navigator.userAgent

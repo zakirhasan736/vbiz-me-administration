@@ -4,6 +4,7 @@ import { ModalPortal } from '@/components/ModalPortal'
 import { SmsPhoneConsent, smsConsentRequired } from '@/components/sms/SmsPhoneConsent'
 import { Button, Input } from '@/components/ui'
 import { readSavedGuestContact } from '@/profile-app/lib/contactSaveState'
+import { resolveVisitorPushEndpoint } from '@/profile-app/lib/pushNotifications'
 import { useCreatePublicOneOnOneRequestMutation } from '@/redux/features/oneOnOne/oneOnOne.api'
 import { X } from 'lucide-react'
 import { useState } from 'react'
@@ -62,6 +63,9 @@ function RequestOneOnOneForm({ onClose, profileId, cardName, onSuccess }: FormPr
         guestEmail: guestEmail.trim(),
         guestPhone: guestPhone.trim() || null,
         message: message.trim() || null,
+        // Lets the owner's reply (proposed times, confirm, reschedule, cancel) reach this
+        // browser by push when the visitor allowed notifications on this card.
+        pushEndpoint: await resolveVisitorPushEndpoint(),
       }).unwrap()
       onSuccess?.()
       onClose()

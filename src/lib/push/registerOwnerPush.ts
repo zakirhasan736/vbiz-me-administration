@@ -12,7 +12,7 @@ import {
 import { baseUrl } from '@/redux/api/api'
 import { store } from '@/redux/store'
 
-type ProfileListRow = { id?: string }
+type ProfileListRow = { id?: string; userId?: string | null; companyUserId?: string | null }
 
 const OWNER_PUSH_VAPID_KEY = 'vbiz_owner_push_vapid'
 
@@ -51,7 +51,26 @@ function profileIdsFromListResponse(json: unknown): string[] {
       : Array.isArray(root.items)
         ? root.items
         : []
-  return rows.map((row) => row.id).filter((id): id is string => Boolean(id))
+  return directlyOwnedIds(rows, store.getState().user.user?.id)
+}
+
+/**
+ * Owner alerts belong to each card's DIRECT owner (member when assigned, else corporate).
+ * A corporate login also lists its linked member cards — skip those, so the corporate
+ * device never receives push for them (the dashboard still shows their activity).
+ * The server enforces the same rule; this just avoids pointless registration calls.
+ */
+export function directlyOwnedIds(rows: ProfileListRow[], myUserId?: string | null): string[] {
+  const ids: string[] = []
+  for (const row of rows) {
+    if (!row.id) continue
+    const directOwner = row.userId || row.companyUserId || null
+    // Older API responses without ownership fields: let the server decide.
+    if (!myUserId || (row.userId === undefined && row.companyUserId === undefined) || directOwner === myUserId) {
+      ids.push(row.id)
+    }
+  }
+  return ids
 }
 
 function uint8ArraysEqual(a: Uint8Array, b: Uint8Array) {
@@ -329,12 +348,18 @@ export async function sendOwnerTestPush(delaySeconds = 10): Promise<OwnerPushTes
 
   const apiRoot = baseUrl.replace(/\/$/, '')
   try {
-    const res = await fetch(`${apiRoot}/profiles/${encodeURIComponent(ids[0])}/push/test`, {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ endpoint: subscription.endpoint, delaySeconds }),
-    })
+    let res: Response | null = null
+    // The server only accepts a card this user directly owns (400 otherwise).
+    for (const id of ids.slice(0, 5)) {
+      res = await fetch(`${apiRoot}/profiles/${encodeURIComponent(id)}/push/test`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ endpoint: subscription.endpoint, delaySeconds }),
+      })
+      if (res.status !== 400) break
+    }
+    if (!res) return { ok: false, reason: 'no_cards', message: 'Create a card first — alerts are sent for your cards.' }
     const json = (await res.json().catch(() => null)) as {
       message?: string
       data?: { scheduled?: boolean; devices?: number; thisDeviceRegistered?: boolean; delaySeconds?: number }

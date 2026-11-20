@@ -1,4 +1,5 @@
 import type { SavedNote } from '@/interfaces/api/saveNote'
+import { resolveVisitorPushEndpoint } from '@/profile-app/lib/pushNotifications'
 import { baseUrl } from '@/redux/api/publicApi'
 
 export type SaveProfileNoteOptions = {
@@ -44,9 +45,12 @@ export async function saveProfileNote(
   if (options.authorName?.trim()) params.set('author_name', options.authorName.trim())
   if (options.visitorId?.trim()) params.set('visitor_id', options.visitorId.trim())
 
+  // Owner replies reach this visitor by push when the browser allowed notifications.
+  const pushEndpoint = await resolveVisitorPushEndpoint()
   const response = await fetch(`${baseUrl}/save-note?${params.toString()}`, {
     method: 'POST',
-    headers: { Accept: 'application/json' },
+    headers: { Accept: 'application/json', ...(pushEndpoint ? { 'Content-Type': 'application/json' } : {}) },
+    ...(pushEndpoint ? { body: JSON.stringify({ push_endpoint: pushEndpoint }) } : {}),
   })
 
   if (!response.ok) {
